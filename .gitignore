@@ -1,0 +1,35 @@
+# editors
+.vscode
+*.iml
+.idea
+
+# npm
+node_modules
+
+# Built by CI and attached to the GitHub release, never committed.
+main.js
+
+# sourcemaps
+*.map
+
+# Obsidian writes this when the plugin runs from the repo folder
+data.json
+
+.DS_Store
+
+# local scratch / design drafts, not tracked
+tmp/
+
+# Playwright run artifacts (test/e2e/ itself IS tracked)
+/test-results/
+/playwright-report/
+
+# Bundled real source for e2e tests; rebuilt by globalSetup before every run
+/test/e2e/common/real-bundle.generated.js
+
+# Local tool state
+/.playwright-mcp/
+/.codegraph/
+
+# Windows Alternate Data Streams
+*:*

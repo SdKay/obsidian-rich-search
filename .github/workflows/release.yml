@@ -1,0 +1,109 @@
+name: Release
+
+# Runs on any tag push. Cut a release with `npm version <x.y.z>`,
+# which bumps the version files, regenerates the changelog and tags in one commit, then push
+# main and the tag together. Do not tag by hand.
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      # Obsidian requires the release tag to equal manifest.json's version, with no leading "v".
+      - name: Verify the tag matches manifest.json
+        run: |
+          VERSION=$(node -p "require('./manifest.json').version")
+          if [ "$VERSION" != "${{ github.ref_name }}" ]; then
+            echo "Tag ${{ github.ref_name }} does not match manifest.json version $VERSION" >&2
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # The committed changelog must be what a build from this tag produces; if not,
+      # the released main.js differs from the source it claims to be built from.
+      - name: Verify the committed changelog matches the build
+        run: git diff --exit-code -- src/changelog/generated.ts
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # --match excludes the nightly workflow's nightly-YYYY-MM-DD tags: without it,
+          # git describe finds the nearest tag by commit graph distance, and a nightly tag
+          # cut the day before a release sits closer than the actual previous release tag —
+          # so the changelog silently shrank to "since last nightly" instead of "since last release".
+          PREV=$(git describe --tags --match '[0-9]*.[0-9]*.[0-9]*' --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          RANGE="${PREV:+${PREV}..}HEAD"
+
+          extract() {
+            git log $RANGE --pretty=format:"- %s" | grep -E "^- $1" | \
+              sed -E "s/^- [a-z]+(\([^)]+\))?: /- /" || true
+          }
+
+          FEAT=$(extract "feat")
+          FIX=$(extract "fix")
+          PERF=$(extract "perf")
+          REF=$(extract "refactor")
+          STYLE=$(extract "style")
+          DOCS=$(extract "docs")
+          OTHER=$(git log $RANGE --pretty=format:"- %s" \
+            | grep -Ev "^- (feat|fix|perf|refactor|style|docs|chore|build|ci|test|Merge)" || true)
+
+          BODY=""
+          [ -n "$FEAT" ]  && BODY+=$'## 🚀 New features\n'"$FEAT"$'\n\n'
+          [ -n "$FIX" ]   && BODY+=$'## 🐛 Bug fixes\n'"$FIX"$'\n\n'
+          [ -n "$PERF" ]  && BODY+=$'## ⚡ Performance\n'"$PERF"$'\n\n'
+          [ -n "$REF" ]   && BODY+=$'## ♻️ Refactor\n'"$REF"$'\n\n'
+          [ -n "$STYLE" ] && BODY+=$'## 🎨 UI / styles\n'"$STYLE"$'\n\n'
+          [ -n "$DOCS" ]  && BODY+=$'## 📝 Documentation\n'"$DOCS"$'\n\n'
+          [ -n "$OTHER" ] && BODY+=$'## 🔧 Other changes\n'"$OTHER"$'\n\n'
+
+          if [ -n "$PREV" ]; then
+            REPO="${{ github.repository }}"
+            BODY+="**Full changelog**: https://github.com/${REPO}/compare/${PREV}...${{ github.ref_name }}"
+          fi
+
+          {
+            echo 'body<<EOF'
+            echo "$BODY"
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Attest release assets
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            main.js
+            styles.css
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          body: ${{ steps.changelog.outputs.body }}
+          files: |
+            main.js
+            manifest.json
+            styles.css

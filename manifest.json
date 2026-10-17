@@ -1,0 +1,10 @@
+{
+	"id": "rich-search",
+	"name": "Rich Search",
+	"version": "0.0.0",
+	"minAppVersion": "1.8.7",
+	"description": "Search with whole-word and regex matching, folder and file-type allow/deny lists, and keyword highlighting in the file you open.",
+	"author": "sdking.xing",
+	"authorUrl": "https://github.com/SdKay",
+	"isDesktopOnly": false
+}
