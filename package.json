@@ -1,0 +1,34 @@
+{
+	"name": "obsidian-rich-search",
+	"version": "0.0.0",
+	"description": "Search for Obsidian with whole-word and regex matching, folder and file-type allow/deny lists, and keyword highlighting in the file you open.",
+	"main": "main.js",
+	"type": "module",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "node esbuild.config.mjs generate && tsc -noEmit -skipLibCheck && eslint . && node esbuild.config.mjs production",
+		"test": "vitest run",
+		"test:e2e": "playwright test",
+		"version": "node version-bump.mjs && node esbuild.config.mjs generate && git add manifest.json versions.json src/changelog/generated.ts",
+		"lint": "eslint .",
+		"lockfile:normalize": "node lockfile-normalize.mjs",
+		"changelog:check": "node esbuild.config.mjs generate && git diff --exit-code -- src/changelog/generated.ts",
+		"verify:ci": "node -e \"require('fs').rmSync('node_modules',{recursive:true,force:true})\" && npm ci && npm run build && npm run changelog:check && npm test"
+	},
+	"keywords": [],
+	"license": "AGPL-3.0",
+	"devDependencies": {
+		"@eslint/js": "^9.39.4",
+		"@playwright/test": "1.62.1",
+		"@types/node": "^22.15.17",
+		"esbuild": "0.28.2",
+		"eslint": "^9.39.4",
+		"eslint-plugin-obsidianmd": "^0.4.2",
+		"globals": "^17.6.0",
+		"jiti": "^2.6.1",
+		"obsidian": "latest",
+		"typescript": "^5.8.3",
+		"typescript-eslint": "^8.59.1",
+		"vitest": "^4.1.10"
+	}
+}
