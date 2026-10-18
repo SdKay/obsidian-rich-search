@@ -9,3 +9,8 @@ export class Notice {
 }
 export class Plugin {}
 export class PluginSettingTab {}
+
+let language = 'en';
+export function getLanguage(): string { return language; }
+/** Test hook: the Obsidian UI language the code under test sees. */
+export function __setLanguage(code: string): void { language = code; }

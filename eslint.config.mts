@@ -10,6 +10,8 @@ export default defineConfig(
 		'test',
 		'esbuild.config.mjs',
 		'changelog-gen.mjs',
+		// Node script that renders the README banner; not plugin code.
+		'docs',
 		'vitest.config.ts',
 		'playwright.config.ts',
 		'version-bump.mjs',

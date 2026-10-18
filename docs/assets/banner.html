@@ -1,0 +1,29 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0}
+body{width:1200px;height:320px;background:#060b18;font-family:Inter,"Segoe UI",Roboto,"Noto Sans",system-ui,sans-serif;color:#e8ecf4;display:flex;overflow:hidden}
+.left{width:435px;padding:46px 0 0 40px;background:#080d1c}
+.t1{font-size:104px;font-weight:900;line-height:.92;letter-spacing:-3px;color:#fff}
+.t2{font-size:104px;font-weight:900;line-height:.92;letter-spacing:-3px;background:linear-gradient(180deg,#c13cf0,#6a45f0);-webkit-background-clip:text;color:transparent}
+.sub{margin-top:20px;font-size:22px;font-weight:600;color:#70788c}
+.right{flex:1;padding:17px 34px 20px 36px;background:radial-gradient(900px 400px at 70% 110%,#0f1830,#060b18)}
+.panel{height:100%;border:1px solid #2a3350;border-radius:18px;background:#0a1124;padding:18px 18px 0;box-shadow:0 0 0 1px #141b30 inset}
+.bar{display:flex;gap:10px;align-items:center;height:44px;border:1px solid #2f3858;border-radius:10px;background:#0d1530;padding:0 14px;font-size:20px;color:#cfd6e6}
+.bar b{color:#fff;font-weight:600}
+.chips{display:flex;gap:8px;margin-left:auto}
+.chip{font-size:14px;padding:3px 9px;border:1px solid #39426a;border-radius:7px;color:#9aa3bd}
+.chip.on{background:#3b2a73;border-color:#7c5cf0;color:#d9cbff}
+.row{margin-top:12px;padding:8px 12px;border-bottom:1px solid #1a2240;font-size:18px;color:#cdd4e4;display:flex;gap:10px}
+.row .p{color:#6f7894;width:230px;font-size:15px}
+mark{background:#6a45f0;color:#fff;border-radius:3px;padding:0 3px}
+mark.w{background:#c13cf0}
+.tag{margin-left:auto;font-size:13px;padding:2px 8px;border-radius:6px;border:1px solid #3a4470;color:#a9b2cf}
+</style></head><body>
+<div class="left"><div class="t1">Rich</div><div class="t2">Search</div><div class="sub">Rich search for Obsidian</div></div>
+<div class="right"><div class="panel">
+  <div class="bar"><span>🔍</span><b>\bcache\w*</b><div class="chips"><span class="chip">Aa</span><span class="chip on">ab</span><span class="chip on">.*</span></div></div>
+  <div class="row"><span class="p">notes/engineering.md</span><span>Clear the <mark>cache</mark> after a deploy</span></div>
+  <div class="row"><span class="p">notes/ideas.md</span><span>Layered <mark class="w">caches</mark> beat one big store</span></div>
+  <div class="row"><span class="p">projects/search/plan.md</span><span>Warm the <mark>cache</mark> on startup</span><span class="tag">3 more</span></div>
+  <div class="row" style="opacity:.45"><span class="p">attachments/*.excalidraw</span><span>skipped by the file-type list</span></div>
+</div></div>
+</body></html>

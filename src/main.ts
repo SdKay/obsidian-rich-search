@@ -1,5 +1,6 @@
 import { Plugin } from 'obsidian';
 import { DEFAULT_SETTINGS, loadSettings, type RichSearchSettings } from './settings';
+import { t } from './i18n';
 
 // Keep this file to the plugin lifecycle: load settings, register commands, views and events.
 // Search, filtering and highlighting live in their own modules (pure ones first).
@@ -12,7 +13,7 @@ export default class RichSearchPlugin extends Plugin {
 		// Command ids are stable API once released: never rename one.
 		this.addCommand({
 			id: 'open-search',
-			name: 'Open search',
+			name: t('commandOpenSearch'),
 			callback: () => { /* TODO: open the search view */ },
 		});
 	}
