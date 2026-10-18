@@ -9,3 +9,8 @@ export class Notice {
 	static shown: string[] = [];
 	constructor(message: string) { Notice.shown.push(message); }
 }
+
+let language = 'en';
+export function getLanguage(): string { return language; }
+/** Test hook: the Obsidian UI language the page sees. */
+export function __setLanguage(code: string): void { language = code; }

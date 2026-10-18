@@ -1,25 +1,111 @@
-# Rich Search
+<div align="center">
 
-A search plugin for [Obsidian](https://obsidian.md) that fills the gaps in the built-in search.
+<img src="./docs/banner.png" alt="Rich Search" />
 
-> **Status: scaffold.** The project structure, tests and release pipeline are in place; the search features are not built yet.
+<p>
+  <b>🔤 Whole word &nbsp;·&nbsp; 🧮 Regex &nbsp;·&nbsp; 📁 Folder lists &nbsp;·&nbsp; 🗂️ File-type lists &nbsp;·&nbsp; 🖍️ Highlight on open</b>
+</p>
 
-## Planned features
+<p>
+  <a href="https://github.com/SdKay/obsidian-rich-search/releases/latest">
+    <img src="https://img.shields.io/github/v/release/SdKay/obsidian-rich-search?style=flat-square&color=7c3aed" alt="Latest release" />
+  </a>
+  <a href="https://github.com/SdKay/obsidian-rich-search/releases">
+    <img src="https://img.shields.io/github/downloads/SdKay/obsidian-rich-search/total?style=flat-square&color=brightgreen" alt="Total downloads" />
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/github/license/SdKay/obsidian-rich-search?style=flat-square" alt="License" />
+  </a>
+  <a href="https://obsidian.md/plugins?id=rich-search">
+    <img src="https://img.shields.io/badge/Obsidian-Community_Plugin-7c3aed?style=flat-square&logo=obsidian&logoColor=white" alt="Obsidian community plugin" />
+  </a>
+  <a href="https://paypal.me/ssdking">
+    <img src="https://img.shields.io/badge/Donate-PayPal-003087?style=flat-square&logo=paypal&logoColor=white" alt="Donate via PayPal" />
+  </a>
+</p>
 
-- **Whole-word** and **regular-expression** matching, with case sensitivity
-- **Folder** allow/deny lists
-- **File-type** allow/deny lists, so Excalidraw and other base64-heavy files stop polluting results
-- **Highlight** the keyword (or its line) in the file you open from a result
+<p>
+  <a href="#why-rich-search">Why</a> ·
+  <a href="#installation">Install</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#settings">Settings</a> ·
+  <a href="#development">Development</a> ·
+  <a href="README_CN.md">中文</a>
+</p>
 
-Works on desktop and mobile. Everything runs locally; the plugin makes no network requests.
+<p>
+  <img src="docs/wechat-qrcode.jpg" alt="WeChat public account" width="120" />
+  <br/><sub>Follow on WeChat for more Obsidian plugins &amp; tools</sub>
+</p>
 
-## Install (for testing)
+</div>
 
-1. Build: `npm install && npm run build`.
-2. Copy `main.js`, `manifest.json` and `styles.css` into `<your vault>/.obsidian/plugins/rich-search/`.
-3. In Obsidian, turn on **Settings → Community plugins → Rich Search**.
+> **Status: early development.** The project foundation, tests and release pipeline are in place; the search features below are being built. Nothing here is released yet.
 
-## Develop
+Search for Obsidian that fills the gaps in the built-in search: match whole words or regular expressions, decide which folders and file types are searched, and see the keyword highlighted in the file you open.
+
+---
+
+## Why Rich Search?
+
+Obsidian's built-in search is fast for a quick lookup, but it falls short once a vault grows:
+
+| Need | Built-in search | Rich Search |
+|---|:---:|:---:|
+| Match whole words only | 🔴 | 🟢 planned |
+| Regular expressions | 🟡 limited | 🟢 planned |
+| Folder allow / deny lists | 🔴 | 🟢 planned |
+| File-type allow / deny lists | 🔴 | 🟢 planned |
+| Keep Excalidraw / base64-like files out of results | 🔴 | 🟢 planned |
+| Highlight the keyword (or its line) after opening a result | 🔴 | 🟢 planned |
+
+Legend: 🟢 supported　🟡 partial　🔴 not supported
+
+---
+
+## Installation
+
+**Community plugin browser (recommended, once released):**
+
+1. Open **Settings → Community plugins → Browse**
+2. Search for **Rich Search** and install
+3. Enable the plugin
+
+**Manual:** copy `main.js`, `manifest.json`, `styles.css` to `<vault>/.obsidian/plugins/rich-search/`
+
+Minimum Obsidian version: **1.8.7**. Works on desktop and mobile.
+
+---
+
+## Features
+
+- **Whole-word matching** that also works in Chinese, Japanese and Korean text
+- **Regular expressions**, with a clear message instead of an error while you are still typing the pattern
+- **Case sensitivity** toggle
+- **Folder lists**: search only some folders, or never search others
+- **File-type lists**: search only some extensions, or never search others, decided from the path so skipped files are never read
+- **Highlight** the keyword, or its line, in the file you open from a result
+
+Everything runs locally. The plugin makes no network requests.
+
+---
+
+## Settings
+
+| Setting | What it does |
+|---|---|
+| Only search these folders | One folder per line. Empty means every folder. |
+| Never search these folders | One folder per line. Takes priority over the list above. |
+| Only search these file types | One extension per line. Empty means every type. |
+| Never search these file types | One extension per line. Takes priority over the list above. |
+
+### Languages
+
+The interface follows Obsidian's language setting: English and 简体中文. Any other language shows English. To add a language, create `src/i18n/<code>.ts` and register it in `src/i18n/index.ts`; pull requests with corrections or new languages are welcome.
+
+---
+
+## Development
 
 ```bash
 npm install
@@ -29,19 +115,37 @@ npm run test:e2e     # browser tests (first run: npx playwright install chromium
 npm run verify:ci    # clean install, build, changelog check, tests
 ```
 
-## Layout
-
-```
-src/
-  main.ts        plugin lifecycle only
-  settings.ts    settings and defaults (add keys, never rename)
-  types.ts       the contract between layers
-  match.ts       matching core (pure, tested)
-test/
-  *.test.ts      vitest
-  e2e/           playwright, real source in a browser page
-```
+---
 
 ## License
 
-[AGPL-3.0](LICENSE)
+[AGPL-3.0](LICENSE): derivatives must be open-sourced under the same license.
+
+For **commercial licensing**: sdkxyx@gmail.com
+
+---
+
+## Support the Project
+
+Rich Search is free and open-source under the AGPL-3.0 license. If this plugin has improved your workflow, you can support its ongoing development with a voluntary donation. Every contribution helps fix bugs and add new features.
+
+### 💳 PayPal
+[![Donate via PayPal](https://img.shields.io/badge/Donate-PayPal-003087?style=flat-square&logo=paypal&logoColor=white)](https://paypal.me/ssdking)
+
+### 🧧 WeChat Pay / Alipay
+
+| WeChat Pay | Alipay |
+|:---:|:---:|
+| <img src="docs/wechat-donate.jpg" width="120" alt="WeChat Pay donation QR code" /> | <img src="docs/alipay-donate.jpg" width="120" alt="Alipay donation QR code" /> |
+
+Thank you for your support! 🙏
+
+---
+
+## Feedback
+
+Issues and feature requests: [GitHub Issues](https://github.com/SdKay/obsidian-rich-search/issues)
+
+---
+
+[![Star History Chart](https://api.star-history.com/svg?repos=SdKay/obsidian-rich-search&type=Date)](https://star-history.com/#SdKay/obsidian-rich-search&Date)
