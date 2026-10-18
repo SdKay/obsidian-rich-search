@@ -3,7 +3,7 @@
 <img src="./docs/banner.png" alt="Rich Search" />
 
 <p>
-  <b>🔤 Whole word &nbsp;·&nbsp; 🧮 Regex &nbsp;·&nbsp; 📁 Folder lists &nbsp;·&nbsp; 🗂️ File-type lists &nbsp;·&nbsp; 🖍️ Highlight on open</b>
+  <b>🔤 Whole word &nbsp;·&nbsp; 🧮 Regex &nbsp;·&nbsp; 📁 Folder lists &nbsp;·&nbsp; 🗂️ File-type lists &nbsp;·&nbsp; 🧩 Cross-format search &nbsp;·&nbsp; 🖍️ Highlight on open</b>
 </p>
 
 <p>
@@ -28,6 +28,7 @@
   <a href="#why-rich-search">Why</a> ·
   <a href="#installation">Install</a> ·
   <a href="#features">Features</a> ·
+  <a href="#cross-format-search">Cross-format</a> ·
   <a href="#settings">Settings</a> ·
   <a href="#development">Development</a> ·
   <a href="README_CN.md">中文</a>
@@ -57,6 +58,7 @@ Obsidian's built-in search is fast for a quick lookup, but it falls short once a
 | Folder allow / deny lists | 🔴 | 🟢 planned |
 | File-type allow / deny lists | 🔴 | 🟢 planned |
 | Keep Excalidraw / base64-like files out of results | 🔴 | 🟢 planned |
+| Search the text inside Excel, PowerPoint, Excalidraw and draw.io files | 🔴 | 🟢 planned |
 | Highlight the keyword (or its line) after opening a result | 🔴 | 🟢 planned |
 
 Legend: 🟢 supported　🟡 partial　🔴 not supported
@@ -84,9 +86,25 @@ Minimum Obsidian version: **1.8.7**. Works on desktop and mobile.
 - **Case sensitivity** toggle
 - **Folder lists**: search only some folders, or never search others
 - **File-type lists**: search only some extensions, or never search others, decided from the path so skipped files are never read
+- **Cross-format search**: find text inside Excel, PowerPoint, Excalidraw and draw.io files (see [below](#cross-format-search))
 - **Highlight** the keyword, or its line, in the file you open from a result
 
 Everything runs locally. The plugin makes no network requests.
+
+---
+
+## Cross-format search
+
+Notes are not the only place your text lives. Rich Search is planned to search the readable text inside other file types in the vault, next to your notes, in one result list:
+
+| Format | What is searched | Stage |
+|---|---|:---:|
+| Excalidraw (`.excalidraw`, `.excalidraw.md`) | Text elements, not the compressed drawing data | 1 |
+| draw.io (`.drawio`, `.drawio.svg`) | Shape and label text | 1 |
+| Excel (`.xlsx`) | Cell values, per sheet | 2 |
+| PowerPoint (`.pptx`) | Slide text and speaker notes | 2 |
+
+This is the other half of the file-type lists: instead of leaving a drawing out because its raw content looks like base64, the plugin reads the text a person would actually see, and searches that. A format with no reader is skipped, never searched as raw bytes. Stage 1 formats are plain JSON or XML; stage 2 formats are zip packages and need a bundled reader, so they come later.
 
 ---
 
