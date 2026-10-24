@@ -20,8 +20,10 @@ export interface MatchOptions {
  * Excalidraw or base64 file only to discard its matches is the cost this plugin exists to avoid.
  *
  * Contract for the filter implementation (not written yet):
- *  - an empty allow list means "everything"; a non-empty one means "only these";
- *  - deny always wins over allow;
+ *  - folder scope is set subtraction: (allowFolders, or every folder when it is empty) minus denyFolders;
+ *    so a deny entry inside an allowed folder carves it out, one outside every allowed folder changes nothing,
+ *    and a deny entry that is a parent of an allowed folder removes it;
+ *  - extensions work the same way with allowExtensions / denyExtensions;
  *  - folder entries match the folder and everything below it, compared on whole path segments
  *    (`notes` must not match `notes-old/`); extensions are compared case-insensitively,
  *    with or without the leading dot.
@@ -44,29 +46,8 @@ export interface SearchHit {
 	 * Absent for ordinary text files. `line` is then the index of the extracted line, not a line of the file.
 	 */
 	location?: string;
-}
-
-/**
- * Turns one non-Markdown file into the text a person would read in it, one entry per line.
- * Searching raw content is wrong for these formats: an Excalidraw file stores compressed base64 and
- * an .xlsx is a zip. A format with no reader is skipped, never searched as bytes.
- *
- * Contract for implementations (none written yet):
- *  - pure: no Obsidian, no I/O of its own; the adapter hands over the file content;
- *  - never throws on a corrupt file: return `{ ok: false, error }` so the search can report and move on;
- *  - may attach a `location` to each line.
- */
-export interface FileReader {
-	/** Lower-case extensions without the dot, e.g. `['xlsx']`. A compound one like `excalidraw.md` is allowed. */
-	extensions: string[];
-	/** Whether the reader needs the raw bytes (a zip) rather than text. */
-	binary: boolean;
-	read(content: string | ArrayBuffer): Result<ExtractedLine[]>;
-}
-
-export interface ExtractedLine {
-	text: string;
-	location?: string;
+	/** Opaque to us: whatever the provider attached to the line, handed back unchanged when the hit is opened. */
+	anchor?: unknown;
 }
 
 /** Either a result or a user-facing reason it could not be produced (e.g. an invalid regex). */
