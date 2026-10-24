@@ -1,8 +1,19 @@
+import { normalizeColor } from './color';
+import { sanitizeHistory, type SearchState } from './history';
+import type { BlockMode } from './search';
 import type { FileFilter } from './types';
 
 /** Everything the user can configure. Persisted through `loadData` / `saveData`. */
 export interface RichSearchSettings {
 	filter: FileFilter;
+	/** Fenced-block languages whose lines are not searched. Unlisted languages are searched as plain text. */
+	blockModes: Record<string, BlockMode>;
+	/** Treat `*.excalidraw.md` as the type `.excalidraw`: searched by the words in the drawing, chosen separately from `.md`. */
+	excalidraw: boolean;
+	/** Background of the words that matched the search, `#rrggbb`. The text colour follows from it. */
+	matchColor: string;
+	/** Past searches, oldest first. Only ever appended to; a newer version may add fields to an entry. */
+	history: SearchState[];
 }
 
 /**
@@ -18,13 +29,29 @@ export const DEFAULT_SETTINGS: RichSearchSettings = {
 		// Typical sources of base64-like noise in a notes vault.
 		denyExtensions: [],
 	},
+	// Excalidraw's drawing payload: base64-like noise. The readable "Text Elements" section outside it stays searchable.
+	blockModes: { 'compressed-json': 'skip' },
+	excalidraw: true,
+	matchColor: '#ccff00',
+	history: [],
 };
 
 /** Merges saved data over the defaults, one level deep into `filter`. */
 export function loadSettings(saved: Partial<RichSearchSettings> | null | undefined): RichSearchSettings {
+	const filter = { ...DEFAULT_SETTINGS.filter, ...saved?.filter };
 	return {
 		...DEFAULT_SETTINGS,
 		...saved,
-		filter: { ...DEFAULT_SETTINGS.filter, ...saved?.filter },
+		// Copy the lists: the view edits them in place, and that must never reach DEFAULT_SETTINGS.
+		filter: {
+			allowFolders: [...filter.allowFolders],
+			denyFolders: [...filter.denyFolders],
+			allowExtensions: [...filter.allowExtensions],
+			denyExtensions: [...filter.denyExtensions],
+		},
+		blockModes: { ...DEFAULT_SETTINGS.blockModes, ...saved?.blockModes },
+		excalidraw: typeof saved?.excalidraw === 'boolean' ? saved.excalidraw : DEFAULT_SETTINGS.excalidraw,
+		matchColor: normalizeColor(saved?.matchColor, DEFAULT_SETTINGS.matchColor),
+		history: sanitizeHistory(saved?.history),
 	};
 }
