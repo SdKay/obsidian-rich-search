@@ -15,6 +15,7 @@ export default defineConfig(
 		'vitest.config.ts',
 		'playwright.config.ts',
 		'version-bump.mjs',
+		'check-release.mjs',
 		'lockfile-normalize.mjs',
 		'versions.json',
 		'main.js',
