@@ -1,7 +1,7 @@
 {
 	"name": "obsidian-rich-search",
 	"version": "0.0.0",
-	"description": "Search for Obsidian with whole-word and regex matching, folder and file-type allow/deny lists, and keyword highlighting in the file you open.",
+	"description": "Cross-file search: whole-word and regex matching, folder and file-type scope, and results from notes, PDF, Excalidraw, Excel, PowerPoint, draw.io and Visio files, with every match marked where it opens.",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
@@ -11,13 +11,16 @@
 		"test:e2e": "playwright test",
 		"version": "node version-bump.mjs && node esbuild.config.mjs generate && git add manifest.json versions.json src/changelog/generated.ts",
 		"lint": "eslint .",
+		"check:release": "node check-release.mjs",
 		"lockfile:normalize": "node lockfile-normalize.mjs",
 		"changelog:check": "node esbuild.config.mjs generate && git diff --exit-code -- src/changelog/generated.ts",
-		"verify:ci": "node -e \"require('fs').rmSync('node_modules',{recursive:true,force:true})\" && npm ci && npm run build && npm run changelog:check && npm test"
+		"verify:ci": "node -e \"require('fs').rmSync('node_modules',{recursive:true,force:true})\" && npm ci && npm run build && npm run changelog:check && npm run check:release && npm test"
 	},
 	"keywords": [],
 	"license": "AGPL-3.0",
 	"devDependencies": {
+		"@codemirror/state": "^6.5.0",
+		"@codemirror/view": "^6.38.6",
 		"@eslint/js": "^9.39.4",
 		"@playwright/test": "1.62.1",
 		"@types/node": "^22.15.17",
