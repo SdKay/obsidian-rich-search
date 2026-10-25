@@ -48,6 +48,11 @@ export interface SearchHit {
 	location?: string;
 	/** Opaque to us: whatever the provider attached to the line, handed back unchanged when the hit is opened. */
 	anchor?: unknown;
+	/**
+	 * Set when the line is something a plugin draws inside a fenced block of the note (a table, a diagram) and
+	 * not a line of the note. `line` is then the block's opening fence, and the row is opened without a cursor.
+	 */
+	block?: { fromLine: number; language: string };
 }
 
 /** Either a result or a user-facing reason it could not be produced (e.g. an invalid regex). */

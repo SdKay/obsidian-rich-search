@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PROVIDER_PLUGINS, findProviders, cacheKey, extractWith, pluginState, type PluginsLike } from '../src/providers';
+import { PROVIDER_PLUGINS, findProviders, findBlockProviders, cacheKey, blockCacheKey, extractWith, extractBlockWith, revealBlockWith, pluginState, type PluginsLike } from '../src/providers';
 
 const okProvider = (extra: Record<string, unknown> = {}) => ({
 	apiVersion: 1,
@@ -168,5 +168,81 @@ describe('findProviders: installed but switched off', () => {
 		const r = findProviders({ plugins: {}, manifests: { 'rich-table': {} } });
 		expect(r.find((e) => e.ext === 'xlsx')).toMatchObject({ status: 'disabled', plugin: 'Rich Table' });
 		expect(r.find((e) => e.ext === 'drawio')).toMatchObject({ status: 'missing' });
+	});
+});
+
+const blockProvider = (extra: Record<string, unknown> = {}) => okProvider({
+	blockLanguages: ['rich-table'],
+	extractBlock: async () => ({ ok: true as const, value: [{ text: 'cell', location: 'Table 1 · row 2', anchor: { r: 2 } }] }),
+	...extra,
+});
+
+describe('findBlockProviders', () => {
+	it('lists each language a provider renders inside notes, with the plugin that owns it', () => {
+		const found = findBlockProviders(plugins({ 'rich-table': blockProvider() }));
+		expect(found.map((b) => [b.language, b.plugin])).toEqual([['rich-table', 'Rich Table']]);
+	});
+
+	it('lower-cases languages, since fence info strings are compared in lower case', () => {
+		const found = findBlockProviders(plugins({ 'rich-table': blockProvider({ blockLanguages: ['Rich-Table'] }) }));
+		expect(found.map((b) => b.language)).toEqual(['rich-table']);
+	});
+
+	it('gives a language claimed twice to the first plugin in id order', () => {
+		const found = findBlockProviders(plugins({
+			'rich-view': blockProvider({ blockLanguages: ['rich-table'] }),
+			'rich-table': blockProvider({ blockLanguages: ['rich-table'] }),
+		}));
+		expect(found.map((b) => b.plugin)).toEqual(['Rich Table']);
+	});
+
+	it('ignores a provider with no extractBlock, no languages, or another apiVersion', () => {
+		expect(findBlockProviders(plugins({ 'rich-table': okProvider({ blockLanguages: ['rich-table'] }) }))).toEqual([]);
+		expect(findBlockProviders(plugins({ 'rich-table': blockProvider({ blockLanguages: undefined }) }))).toEqual([]);
+		expect(findBlockProviders(plugins({ 'rich-table': blockProvider({ apiVersion: 2 }) }))).toEqual([]);
+	});
+
+	it('does not throw when the registry is missing or a language is not a string', () => {
+		expect(findBlockProviders(undefined)).toEqual([]);
+		expect(findBlockProviders(plugins({ 'rich-table': blockProvider({ blockLanguages: [3, '', 'rich-table'] }) })).map((b) => b.language)).toEqual(['rich-table']);
+	});
+});
+
+describe('blockCacheKey', () => {
+	it('changes with the language, the provider version and the source, since a block has no modification time', () => {
+		const base = blockCacheKey('n.md', 'rich-table', 1, 'a');
+		expect(blockCacheKey('m.md', 'rich-table', 1, 'a')).not.toBe(base);
+		expect(blockCacheKey('n.md', 'rich-view', 1, 'a')).not.toBe(base);
+		expect(blockCacheKey('n.md', 'rich-table', 2, 'a')).not.toBe(base);
+		expect(blockCacheKey('n.md', 'rich-table', 1, 'b')).not.toBe(base);
+	});
+
+	it('does not collide with a file key', () => {
+		expect(blockCacheKey('a', 'b', 1, 'c')).not.toBe(cacheKey('a', 1, 0));
+	});
+});
+
+describe('extractBlockWith / revealBlockWith', () => {
+	const entry = (extra: Record<string, unknown> = {}) => findBlockProviders(plugins({ 'rich-table': blockProvider(extra) }))[0]!;
+	const block = { path: 'a.md', language: 'rich-table', source: 'x' };
+
+	it('hands the block to the provider and returns its lines', async () => {
+		const r = await extractBlockWith(entry(), block);
+		expect(r).toEqual({ ok: true, value: [{ text: 'cell', location: 'Table 1 · row 2', anchor: { r: 2 } }] });
+	});
+
+	it('turns a throw or a malformed result into a failure', async () => {
+		expect((await extractBlockWith(entry({ extractBlock: async () => { throw new Error('bad yaml'); } }), block))).toEqual({ ok: false, error: 'bad yaml' });
+		expect((await extractBlockWith(entry({ extractBlock: async () => 'nope' }), block)).ok).toBe(false);
+	});
+
+	it('reveals only when the provider says it did, and never throws', async () => {
+		const leaf = {} as never;
+		const target = { fromLine: 3, anchor: { r: 2 } };
+		const query = { query: 'x' };
+		expect(await revealBlockWith(entry({ revealBlock: () => true }), leaf, target, query)).toBe(true);
+		expect(await revealBlockWith(entry({ revealBlock: async () => false }), leaf, target, query)).toBe(false);
+		expect(await revealBlockWith(entry({ revealBlock: () => { throw new Error('x'); } }), leaf, target, query)).toBe(false);
+		expect(await revealBlockWith(entry(), leaf, target, query)).toBe(false);
 	});
 });

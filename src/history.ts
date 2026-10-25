@@ -43,6 +43,12 @@ export function recordState(history: SearchState[], state: SearchState, limit = 
 	return [...kept, cloneState(state)].slice(-limit);
 }
 
+/** A new list without the entry at `position`; the same list when there is no such entry. */
+export function removeState(history: SearchState[], position: number): SearchState[] {
+	if (!Number.isInteger(position) || position < 0 || position >= history.length) return history;
+	return [...history.slice(0, position), ...history.slice(position + 1)];
+}
+
 const isStringList = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === 'string');
 
 function isState(v: unknown): v is SearchState {
@@ -107,4 +113,18 @@ export class HistoryCursor {
 		this.reset();
 		return draft ?? undefined;
 	}
+}
+
+const LABEL_LENGTH = 40;
+
+/**
+ * A one-line description of a remembered search, for a menu: the query, the options that are on (written as the
+ * toggles are), and the folders it was limited to. `inFolders` turns the folders into words, in the user's language.
+ */
+export function describeState(s: SearchState, inFolders: (folders: string) => string = (f) => f): string {
+	const flat = s.query.replace(/\s*[\r\n]+\s*/g, ' ');
+	const query = flat.length > LABEL_LENGTH ? `${flat.slice(0, LABEL_LENGTH)}…` : flat;
+	const flags = [s.caseSensitive && 'Aa', s.wholeWord && 'ab', s.regex && '.*'].filter((f): f is string => f !== false);
+	const folders = s.filter.allowFolders.length > 0 ? `  ${inFolders(s.filter.allowFolders.join(', '))}` : '';
+	return `${query}${flags.length > 0 ? `  [${flags.join(' ')}]` : ''}${folders}`;
 }

@@ -1,9 +1,10 @@
+import { isPdfAnchor } from './pdftext';
 import type { ExtensionProvider } from './providers';
-import type { MatchOptions, SearchHit, Span } from './types';
+import type { MatchOptions, SearchHit } from './types';
 
 export interface OpenPlan {
 	/** A note Obsidian shows itself, or a file shown by the plugin that owns its format. */
-	kind: 'note' | 'provided';
+	kind: 'note' | 'block' | 'pdf' | 'provided';
 	/** Handed to `leaf.openFile` as the ephemeral state. */
 	eState: Record<string, unknown>;
 	/** Set when the file opens but the match cannot be shown: the view that got it does not understand the state. */
@@ -11,6 +12,7 @@ export interface OpenPlan {
 }
 
 const isNote = (path: string): boolean => path.toLowerCase().endsWith('.md');
+const isPdf = (path: string): boolean => path.toLowerCase().endsWith('.pdf');
 
 /**
  * Decides how a clicked hit is opened. A note goes to Obsidian's own editor at the hit line; any other
@@ -18,9 +20,15 @@ const isNote = (path: string): boolean => path.toLowerCase().endsWith('.md');
  * (contract section 5). `provider` is that plugin's entry for the file's extension, if any.
  */
 export function planOpen(hit: SearchHit, query: MatchOptions, provider: ExtensionProvider | undefined): OpenPlan {
+	// A cursor inside a fence makes Live Preview show the block as source, so a block is scrolled to, not entered.
+	if (isNote(hit.path) && hit.block) return { kind: 'block', eState: { scroll: hit.block.fromLine } };
 	if (isNote(hit.path)) {
-		return { kind: 'note', eState: { line: hit.line, richSearchSpans: hit.spans.map((s) => ({ ...s })) } };
+		// No `line` here: Obsidian would scroll the line to the top of reading view first, and the page is then seen to jump. The line is shown once the mode is known.
+		return { kind: 'note', eState: {} };
 	}
+
+	// Obsidian's own viewer takes a page as a link subpath; the file opens at the top if the anchor is not a page.
+	if (isPdf(hit.path)) return { kind: 'pdf', eState: isPdfAnchor(hit.anchor) ? { subpath: `#page=${hit.anchor.page}` } : {} };
 
 	const viewOwned = provider !== undefined && provider.status === 'available' && provider.viewRegistered;
 	if (!viewOwned) return { kind: 'provided', eState: {}, note: 'cannotJump' };
@@ -29,20 +37,4 @@ export function planOpen(hit: SearchHit, query: MatchOptions, provider: Extensio
 		kind: 'provided',
 		eState: { richSearch: { ...(hit.anchor === undefined ? {} : { anchor: hit.anchor }), query: { ...query } } },
 	};
-}
-
-export interface Range {
-	from: number;
-	to: number;
-}
-
-/**
- * Document ranges to mark for a line that starts at `lineStart`. Sorted, because the editor requires
- * decorations in order; empty and reversed spans are dropped; nothing runs past `docLength`.
- */
-export function highlightRanges(lineStart: number, spans: Span[], docLength = Infinity): Range[] {
-	return spans
-		.map((s) => ({ from: lineStart + s.start, to: Math.min(lineStart + s.end, docLength) }))
-		.filter((r) => r.to > r.from && r.from < docLength)
-		.sort((a, b) => a.from - b.from);
 }

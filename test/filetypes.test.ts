@@ -134,9 +134,9 @@ describe('buildFileTypeSources', () => {
 		expect(row).toMatchObject({ available: false, needs: 'Excalidraw' });
 	});
 
-	it('keeps the order: md, excalidraw, then the provider types', () => {
+	it('keeps the order: md, pdf, excalidraw, then the provider types', () => {
 		const order = buildFileTypeSources(providers, { excalidraw: true, excalidrawPlugin: 'enabled' }).map((s) => s.ext);
-		expect(order).toEqual(['md', 'excalidraw', 'xlsx', 'drawio']);
+		expect(order).toEqual(['md', 'pdf', 'excalidraw', 'xlsx', 'drawio']);
 	});
 
 	it('marks provider types by their status', () => {
@@ -209,5 +209,12 @@ describe('sameSources', () => {
 
 	it('tells an installed-but-off plugin from a missing one', () => {
 		expect(sameSources([{ ext: 'x', available: false, hint: 'enable' }], [{ ext: 'x', available: false, hint: 'install' }])).toBe(false);
+	});
+});
+
+describe('buildFileTypeSources: pdf', () => {
+	it('always offers pdf, which Rich Search reads itself, right after Markdown', () => {
+		const list = buildFileTypeSources([], { excalidraw: false, excalidrawPlugin: 'missing' });
+		expect(list.slice(0, 2)).toEqual([{ ext: 'md', available: true }, { ext: 'pdf', available: true }]);
 	});
 });

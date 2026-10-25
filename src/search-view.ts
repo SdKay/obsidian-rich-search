@@ -1,13 +1,17 @@
 import { ItemView, setIcon, TFile, type WorkspaceLeaf } from 'obsidian';
 import { openHit } from './open-hit';
-import { extractWith, findProviders, pluginState, type ExtensionProvider, type PluginsLike } from './providers';
+import { extractPdf, pdfExtractVersion } from './pdf-reader';
+import { extractBlockWith, extractWith, findBlockProviders, findProviders, pluginState, type ExtensionProvider, type PluginsLike } from './providers';
 import type { ExtractResult } from './richSearchApi';
-import { search, type BinaryReader, type SearchProgress } from './search';
+import { search, type BinaryReader, type BlockReader, type SearchProgress } from './search';
 import { appendHits, emptyGroups, showMore, DRAW_STEP, type AppendDiff, type FileGroup, type GroupState } from './groups';
 import { hitIndexFrom } from './hitindex';
+import { nextSelection, type Row } from './selection';
 import { attachFolderInput } from './folder-input';
+import { scopeToFolder } from './folders';
 import { buildFileTypeSources, fileTypeRows, sameSources, setAllTypes, toggleType, type FileTypeSource } from './filetypes';
-import { cloneState, type SearchState } from './history';
+import { cloneState, describeState, type SearchState } from './history';
+import { openHistoryPopup } from './history-popup';
 import { SearchBoxModel } from './searchbox';
 import type RichSearchPlugin from './main';
 import { fmt, t } from './i18n';
@@ -41,9 +45,10 @@ export class RichSearchView extends ItemView {
 	private collapsed = new Set<string>();
 	private timer: number | undefined;
 	private running: AbortController | null = null;
-	private hits: SearchHit[] = [];
 	// The options of the search whose hits are on screen, handed to the file a hit is opened in.
 	private lastQuery: MatchOptions = { query: '' };
+	/** The hit that is open, shown with a background. Set by a click, the arrow keys or Enter. */
+	private selected: number | undefined;
 	private unreadable = 0;
 	// What the results pane currently shows, so a progress update can append instead of rebuilding.
 	private state: GroupState = emptyGroups();
@@ -52,6 +57,7 @@ export class RichSearchView extends ItemView {
 	private chevronEl!: HTMLElement;
 	private knownSources: FileTypeSource[] = [];
 	private closeSuggests: (() => void)[] = [];
+	private closeHistory: (() => void) | undefined;
 	// Text pulled out of workbooks and diagrams, kept between searches (see search.ts for the key).
 	private readonly extracted = new Map<string, ExtractResult>();
 	private readonly box = new SearchBoxModel({
@@ -96,6 +102,9 @@ export class RichSearchView extends ItemView {
 		const box = top.createDiv({ cls: 'rs-box' });
 		this.inputEl = box.createEl('input', { cls: 'rs-input', attr: { type: 'text', placeholder: t('searchPlaceholder'), spellcheck: 'false' } });
 		const inside = box.createDiv({ cls: 'rs-box-actions' });
+		const historyEl = inside.createSpan({ cls: 'rs-clear rs-history', attr: { 'aria-label': t('historyButton') } });
+		setIcon(historyEl, 'history');
+		this.registerDomEvent(historyEl, 'click', () => this.showHistory(historyEl));
 		this.clearEl = inside.createSpan({ cls: 'rs-clear', attr: { 'aria-label': t('clearQuery') } });
 		setIcon(this.clearEl, 'x');
 		this.addToggle(inside, 'Aa', 'rs-toggle-case', 'optionCaseSensitive', () => this.caseSensitive, (v) => { this.caseSensitive = v; });
@@ -137,8 +146,9 @@ export class RichSearchView extends ItemView {
 		const bar = top.createDiv({ cls: 'rs-summary-bar' });
 		this.summaryEl = bar.createSpan({ cls: 'rs-summary' });
 		this.toggleAllEl = bar.createDiv({ cls: 'rs-toggle-all clickable-icon' });
-		this.resultsEl = root.createDiv({ cls: 'rs-results' });
+		this.resultsEl = root.createDiv({ cls: 'rs-results', attr: { tabindex: '0' } });
 		this.registerDomEvent(this.resultsEl, 'click', (event) => this.onResultsClick(event));
+		this.registerDomEvent(this.resultsEl, 'keydown', (event) => this.onResultsKey(event));
 
 		this.renderScope(chevron);
 		this.runSearch();
@@ -147,6 +157,8 @@ export class RichSearchView extends ItemView {
 	}
 
 	onClose(): Promise<void> {
+		this.closeHistory?.();
+		this.plugin.query.clear();
 		for (const close of this.closeSuggests) close();
 		window.clearTimeout(this.timer);
 		this.running?.abort();
@@ -192,23 +204,39 @@ export class RichSearchView extends ItemView {
 		return findProviders(pluginRegistry(this.app));
 	}
 
-	/** Reads non-note files through the plugin that renders them; paths it cannot handle are never read. */
+	/** Reads non-note files: PDFs through Obsidian's own PDF.js, the rest through the plugin that renders them. Paths nobody handles are never read. */
 	private binaryReader(): BinaryReader {
 		const found = new Map(this.providers().filter((p) => p.status === 'available').map((p) => [p.ext, p]));
-		const forPath = (path: string): ExtensionProvider | undefined => found.get(path.slice(path.lastIndexOf('.') + 1).toLowerCase());
+		const extOf = (path: string): string => path.slice(path.lastIndexOf('.') + 1).toLowerCase();
+		const forPath = (path: string): ExtensionProvider | undefined => found.get(extOf(path));
+		const isPdf = (path: string): boolean => extOf(path) === 'pdf';
 		const file = (path: string): TFile => {
 			const f = this.app.vault.getAbstractFileByPath(path);
 			if (!(f instanceof TFile)) throw new Error(path);
 			return f;
 		};
 		return {
-			handles: (path) => forPath(path) !== undefined,
-			version: (path) => forPath(path)?.provider?.extractVersion ?? 0,
+			handles: (path) => isPdf(path) || forPath(path) !== undefined,
+			version: (path) => (isPdf(path) ? pdfExtractVersion() : forPath(path)?.provider?.extractVersion ?? 0),
 			mtime: (path) => Promise.resolve(file(path).stat.mtime),
 			read: (path) => this.app.vault.readBinary(file(path)),
-			extract: (path, content) => {
+			extract: (path, content, signal) => {
+				if (isPdf(path)) return extractPdf(content, signal);
 				const entry = forPath(path);
 				return entry ? extractWith(entry, { path, content }) : Promise.resolve({ ok: false, error: path });
+			},
+		};
+	}
+
+	/** Asks the plugins that draw fenced blocks (a table, a diagram) what a block shows; looked up per search, like the file providers. */
+	private blockReader(): BlockReader {
+		const found = new Map(findBlockProviders(pluginRegistry(this.app)).map((b) => [b.language, b]));
+		return {
+			handles: (language) => found.has(language),
+			version: (language) => found.get(language)?.provider.extractVersion ?? 0,
+			extract: (path, language, source) => {
+				const entry = found.get(language);
+				return entry ? extractBlockWith(entry, { path, language, source }) : Promise.resolve({ ok: false, error: language });
 			},
 		};
 	}
@@ -231,6 +259,21 @@ export class RichSearchView extends ItemView {
 	}
 
 	/** Puts a remembered search back: the text, the three options and the scope. Does nothing for undefined. */
+	/** The remembered searches, newest first: choose one, forget one with its cross, or forget them all. */
+	private showHistory(anchor: HTMLElement): void {
+		this.closeHistory?.();
+		const settings = this.plugin.settings;
+		this.closeHistory = openHistoryPopup(anchor, {
+			entries: () => settings.history
+				.map((state, position) => ({ position, label: describeState(state, (folders) => fmt('historyIn', { folders })) }))
+				.reverse(),
+			apply: (position) => { const state = settings.history[position]; if (state) this.stepHistory(cloneState(state)); },
+			forget: (position) => this.box.forget(position),
+			forgetAll: () => this.box.forgetAll(),
+			labels: { empty: t('historyEmpty'), clear: t('historyClear'), remove: t('historyRemove') },
+		});
+	}
+
 	private stepHistory(state: SearchState | undefined): void {
 		if (!state) return;
 		this.query = state.query;
@@ -249,6 +292,19 @@ export class RichSearchView extends ItemView {
 		this.inputEl.setSelectionRange(end, end);
 	}
 
+	/** Limits the search to one folder, shows the scope so the change is visible, and searches the query that is already typed. */
+	searchInFolder(folder: string): void {
+		const filter = scopeToFolder(this.plugin.settings.filter, folder);
+		this.plugin.settings.filter = filter;
+		this.rows = { allowFolders: [...filter.allowFolders], denyFolders: [...filter.denyFolders] };
+		this.scopeOpen = true;
+		void this.plugin.saveSettings();
+		this.renderScope(this.chevronEl);
+		window.clearTimeout(this.timer);
+		this.runSearch();
+		this.focusInput();
+	}
+
 	private schedule(): void {
 		window.clearTimeout(this.timer);
 		this.timer = window.setTimeout(() => this.runSearch(), 300);
@@ -259,11 +315,11 @@ export class RichSearchView extends ItemView {
 		this.clearEl.toggleClass('is-hidden', this.query === '');
 		this.renderScopeSummary();
 		this.errorEl.empty();
-		this.hits = [];
 		this.unreadable = 0;
 		this.resetResults();
 
 		if (this.query === '') {
+			this.plugin.query.clear();
 			this.running = null;
 			this.showMessage(t('emptyHint'));
 			this.summaryEl.setText('');
@@ -273,6 +329,7 @@ export class RichSearchView extends ItemView {
 		const controller = new AbortController();
 		this.running = controller;
 		this.lastQuery = { query: this.query, caseSensitive: this.caseSensitive, wholeWord: this.wholeWord, regex: this.regex };
+		this.plugin.query.set(this.lastQuery);
 		const settings = this.plugin.settings;
 		const files = this.app.vault.getFiles();
 
@@ -285,21 +342,23 @@ export class RichSearchView extends ItemView {
 			blockModes: settings.blockModes,
 			excalidraw: settings.excalidraw,
 			binary: this.binaryReader(),
+			blocks: this.blockReader(),
 			cache: this.extracted,
 			signal: controller.signal,
-			onProgress: (p) => { if (this.running === controller) this.update(p.hits, p); },
+			onProgress: (p) => { if (this.running === controller) this.update(p.newHits, p); },
 		}).then((result) => {
 			if (this.running !== controller) return;
 			this.running = null;
 			if (!result.ok) {
-				this.update([], null);
+				this.resetResults();
+				this.summaryEl.setText('');
+				this.showMessage(t('noResults'));
 				this.errorEl.setText(fmt('invalidPattern', { reason: result.error }));
 				return;
 			}
 			if (result.cancelled) return;
-			this.hits = result.hits;
 			this.unreadable = result.failed.length;
-			this.update(result.hits, null);
+			this.update([], null);
 		});
 	}
 
@@ -310,6 +369,7 @@ export class RichSearchView extends ItemView {
 	}
 
 	private resetResults(): void {
+		this.selected = undefined;
 		this.resultsEl.empty();
 		this.toggleAllEl.empty();
 		this.state = emptyGroups();
@@ -322,24 +382,23 @@ export class RichSearchView extends ItemView {
 	}
 
 	/**
-	 * Brings the pane up to date with `hits`. While a search runs, hits only accumulate, so only the new
-	 * rows are appended; collapse state, scroll position and the other groups are left alone.
+	 * Adds the hits found since the last call (`found`, each handed out once) to the pane and refreshes the
+	 * summary. Collapse state, scroll position and the groups already drawn are left alone. `progress` is null
+	 * once the search has ended.
 	 */
-	private update(hits: SearchHit[], progress: SearchProgress | null): void {
+	private update(found: SearchHit[], progress: SearchProgress | null): void {
 		const status = progress ? fmt('searching', { done: progress.scanned, total: progress.total }) : '';
 
-		if (hits.length === 0) {
-			this.resetResults();
+		if (found.length > 0) {
+			if (this.resultsEl.querySelector('.rs-empty')) this.resultsEl.empty();
+			this.draw(appendHits(this.state, found));
+		}
+
+		if (this.state.count === 0) {
 			this.summaryEl.setText(status);
 			if (!progress) this.showMessage(t('noResults'));
 			return;
 		}
-
-		// Hits only ever accumulate while a search runs, so only the ones not drawn yet need work.
-		if (hits.length < this.state.count) this.resetResults();
-		else if (this.resultsEl.querySelector('.rs-empty')) this.resultsEl.empty();
-		const diff = appendHits(this.state, hits.slice(this.state.count));
-		this.draw(diff);
 
 		const summary = fmt('resultsSummary', { hits: this.state.count, files: this.state.fileCount });
 		const shown = this.state.drawn < this.state.count ? fmt('showingOf', { shown: this.state.drawn }) : '';
@@ -423,6 +482,52 @@ export class RichSearchView extends ItemView {
 		this.renderSnippet(row.createSpan({ cls: 'rs-hit-text' }), hit);
 	}
 
+	/** Selects a hit and opens it. A click takes the focus into the note; the keyboard leaves it in the list. */
+	private openResult(number: number, event: MouseEvent | null, takeFocus: boolean): void {
+		const hit = this.state.all[number];
+		if (!hit) return;
+		this.select(number);
+		this.plugin.setOpenedHit({
+			path: hit.path, line: hit.line, index: 0, text: hit.text, ...(hit.spans[0] ? { column: hit.spans[0].start } : {}),
+			// A match in a file or a block that a plugin draws is brightened by that plugin, which is told which of its marks it is.
+			...(hit.block ? { block: { fromLine: hit.block.fromLine, anchor: hit.anchor } } : hit.anchor === undefined ? {} : { anchor: hit.anchor }),
+		});
+		const ext = hit.path.slice(hit.path.lastIndexOf('.') + 1).toLowerCase();
+		void openHit(this.app, hit, this.lastQuery, event, this.providers().find((p) => p.ext === ext), takeFocus, findBlockProviders(pluginRegistry(this.app)).find((b) => b.language === hit.block?.language));
+	}
+
+	/** Moves the background from the old row to the new one, and keeps the new one in view. */
+	private select(number: number | undefined): void {
+		const rowOf = (n: number | undefined): Element | null => (n === undefined ? null : this.resultsEl.querySelector(`[data-hit="${n}"]`));
+		rowOf(this.selected)?.removeClass('is-selected');
+		this.selected = number;
+		const row = rowOf(number);
+		row?.addClass('is-selected');
+		row?.scrollIntoView({ block: 'nearest' });
+	}
+
+	/** The hits on screen, top to bottom, with the file each is listed under. Read from the page: it is what the user sees. */
+	private visibleRows(): Row[] {
+		const rows: Row[] = [];
+		for (const el of Array.from(this.resultsEl.querySelectorAll('.rs-hit'))) {
+			const hit = hitIndexFrom(el);
+			const file = el.closest('.rs-file')?.querySelector('[data-file]')?.getAttribute('data-file');
+			if (hit !== undefined && file) rows.push({ hit, file });
+		}
+		return rows;
+	}
+
+	private onResultsKey(event: KeyboardEvent): void {
+		if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+			event.preventDefault();
+			const next = nextSelection(this.visibleRows(), this.collapsed, this.selected, event.key === 'ArrowDown' ? 'down' : 'up');
+			if (next !== undefined && next !== this.selected) this.openResult(next, null, false);
+		} else if (event.key === 'Enter' && this.selected !== undefined) {
+			event.preventDefault();
+			this.openResult(this.selected, null, true);
+		}
+	}
+
 	/** One listener for the whole list: thousands of rows would otherwise each keep a listener until the view closes. */
 	private onResultsClick(event: MouseEvent): void {
 		const target = event.target instanceof Element ? event.target : null;
@@ -430,10 +535,9 @@ export class RichSearchView extends ItemView {
 		if (target?.closest('[data-more]')) { this.showMoreHits(); return; }
 
 		const number = hitIndexFrom(target);
-		const hit = number === undefined ? undefined : this.state.all[number];
-		if (hit) {
-			const ext = hit.path.slice(hit.path.lastIndexOf('.') + 1).toLowerCase();
-			void openHit(this.app, hit, this.lastQuery, event, this.providers().find((p) => p.ext === ext));
+		if (number !== undefined && this.state.all[number]) {
+			this.resultsEl.focus({ preventScroll: true });
+			this.openResult(number, event, true);
 			return;
 		}
 

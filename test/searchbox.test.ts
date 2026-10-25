@@ -118,3 +118,56 @@ describe('SearchBoxModel: arrows', () => {
 		expect(model.up(state(''))?.query).toBe('b');
 	});
 });
+
+describe('SearchBoxModel: managing the history', () => {
+	function box(initial: SearchState[]) {
+		let history = initial;
+		const model = new SearchBoxModel({ getHistory: () => history, setHistory: (h) => { history = h; } });
+		return { model, get: () => history };
+	}
+	const q = (query: string): SearchState => ({ query, caseSensitive: false, wholeWord: false, regex: false, filter: { allowFolders: [], denyFolders: [], allowExtensions: [], denyExtensions: [] } });
+
+	it('forgets one search by its position', () => {
+		const b = box([q('a'), q('b'), q('c')]);
+		b.model.forget(1);
+		expect(b.get().map((s) => s.query)).toEqual(['a', 'c']);
+	});
+
+	it('forgets every search', () => {
+		const b = box([q('a'), q('b')]);
+		b.model.forgetAll();
+		expect(b.get()).toEqual([]);
+	});
+
+	it('ends history navigation, so an arrow key does not return an entry that is gone', () => {
+		const b = box([q('a'), q('b'), q('c')]);
+		expect(b.model.up(q('x'))?.query).toBe('c');
+		expect(b.model.up(q('c'))?.query).toBe('b');
+		b.model.forget(1);
+		// Navigation starts over from the newest entry that is left.
+		expect(b.model.up(q('x'))?.query).toBe('c');
+		expect(b.model.up(q('c'))?.query).toBe('a');
+	});
+
+	it('ends history navigation when everything is forgotten', () => {
+		const b = box([q('a')]);
+		b.model.up(q('x'));
+		b.model.forgetAll();
+		expect(b.model.up(q('x'))).toBeUndefined();
+		expect(b.model.down()).toBeUndefined();
+	});
+
+	it('does not save when the position is not in the list', () => {
+		let saved = 0;
+		const model = new SearchBoxModel({ getHistory: () => [q('a')], setHistory: () => { saved++; } });
+		model.forget(5);
+		expect(saved).toBe(0);
+	});
+
+	it('does not save when there is nothing to forget', () => {
+		let saved = 0;
+		const model = new SearchBoxModel({ getHistory: () => [], setHistory: () => { saved++; } });
+		model.forgetAll();
+		expect(saved).toBe(0);
+	});
+});

@@ -128,31 +128,30 @@ describe('search: not blocking the UI', () => {
 		const seen: { scanned: number; total: number; paths: string[] }[] = [];
 		await search({
 			files: v.files, read: v.read, yieldToUi: never, match: { query: 'x' }, filter: noFilter, batchSize: 2,
-			onProgress: (p) => seen.push({ scanned: p.scanned, total: p.total, paths: p.hits.map((h) => h.path) }),
+			onProgress: (p) => seen.push({ scanned: p.scanned, total: p.total, paths: p.newHits.map((h) => h.path) }),
 		});
 		expect(seen).toEqual([
 			{ scanned: 2, total: 3, paths: ['a.md'] },
-			{ scanned: 3, total: 3, paths: ['a.md', 'c.md'] },
+			{ scanned: 3, total: 3, paths: ['c.md'] },
 		]);
 	});
 
-	it('hands out a snapshot of the hits, so later batches do not change what was reported', async () => {
-		const v = vault({ 'a.md': 'x', 'b.md': 'x' });
-		const lengths: number[] = [];
+	it('hands out only the hits found since the last report, each once, and never copies the earlier ones', async () => {
+		const v = vault({ 'a.md': 'x', 'b.md': 'x', 'c.md': 'x' });
 		const kept: SearchProgress[] = [];
-		await search({
+		const r = await search({
 			files: v.files, read: v.read, yieldToUi: never, match: { query: 'x' }, filter: noFilter, batchSize: 1,
-			onProgress: (p) => { kept.push(p); lengths.push(p.hits.length); },
+			onProgress: (p) => { kept.push(p); },
 		});
-		expect(kept.map((p) => p.hits.length)).toEqual(lengths);
-		expect(lengths).toEqual([1, 2]);
+		expect(kept.map((p) => p.newHits.map((h) => h.path))).toEqual([['a.md'], ['b.md'], ['c.md']]);
+		expect(kept.flatMap((p) => p.newHits)).toEqual(r.ok ? r.hits : []);
 	});
 
 	it('counts only files that will be read in the progress total', async () => {
 		const v = vault({ 'a.md': 'x', 'archive/b.md': 'x', 'c.png': 'x' });
 		const seen: SearchProgress[] = [];
 		await search({ files: v.files, read: v.read, yieldToUi: never, match: { query: 'x' }, filter: { ...noFilter, denyFolders: ['archive'] }, onProgress: (p) => seen.push(p) });
-		expect(seen.map((p) => [p.scanned, p.total, p.hits.length])).toEqual([[1, 1, 1]]);
+		expect(seen.map((p) => [p.scanned, p.total, p.newHits.length])).toEqual([[1, 1, 1]]);
 	});
 });
 
@@ -466,5 +465,179 @@ describe('search: excalidraw notes', () => {
 	it('with the setting off, excluding .md removes drawings too, since they are .md files', async () => {
 		const r = await run({ excalidraw: false, filter: { ...noFilter, denyExtensions: ['md'] } });
 		expect(r.ok && r.hits).toEqual([]);
+	});
+});
+
+describe('search: blocks a provider renders', () => {
+	const note = ['intro cat', '```rich-table', 'title: cat', 'rows: [cat-yaml]', '```', 'outro cat'].join('\n');
+	const reader = (lines: ExtractedLine[] | { error: string }, calls: string[] = []) => ({
+		handles: (language: string) => language === 'rich-table',
+		version: () => 1,
+		extract: (path: string, language: string, source: string): Promise<ExtractResult> => {
+			calls.push(`${path}|${language}|${source}`);
+			return Promise.resolve('error' in lines ? { ok: false, error: lines.error } : { ok: true, value: lines });
+		},
+	});
+	const run = (blocks: ReturnType<typeof reader> | undefined, cache?: Map<string, ExtractResult>, text = note) => {
+		const v = vault({ 'a.md': text });
+		return search({ files: v.files, read: v.read, yieldToUi: never, match: { query: 'cat' }, filter: noFilter, ...(blocks ? { blocks } : {}), ...(cache ? { cache } : {}) });
+	};
+
+	it('lists the provider lines instead of the block source, in file order, at the block position', async () => {
+		const r = await run(reader([{ text: 'a cat cell', location: 'Table 1 · row 2', anchor: { r: 2 } }, { text: 'dog' }]));
+		expect(r.ok && r.hits).toEqual([
+			{ path: 'a.md', line: 0, text: 'intro cat', spans: [{ start: 6, end: 9 }] },
+			{ path: 'a.md', line: 1, text: 'a cat cell', spans: [{ start: 2, end: 5 }], location: 'Table 1 · row 2', anchor: { r: 2 }, block: { fromLine: 1, language: 'rich-table' } },
+			{ path: 'a.md', line: 5, text: 'outro cat', spans: [{ start: 6, end: 9 }] },
+		]);
+	});
+
+	it('does not search the block source nor its fence lines when the provider answered', async () => {
+		const r = await run(reader([]));
+		expect(r.ok && r.hits.map((h) => h.line)).toEqual([0, 5]);
+	});
+
+	it('hands the provider the source between the fences and the note path, not the fences', async () => {
+		const calls: string[] = [];
+		await run(reader([], calls));
+		expect(calls).toEqual(['a.md|rich-table|title: cat\nrows: [cat-yaml]']);
+	});
+
+	it('searches the block source instead, and counts the note as unreadable, when the provider fails', async () => {
+		const r = await run(reader({ error: 'bad yaml' }));
+		expect(r.ok && r.hits.map((h) => h.line)).toEqual([0, 2, 3, 5]);
+		expect(r.ok && r.failed).toEqual([{ path: 'a.md', error: 'bad yaml' }]);
+	});
+
+	it('searches the source as it is when no provider handles the language', async () => {
+		const r = await run(undefined);
+		expect(r.ok && r.hits.map((h) => h.line)).toEqual([0, 2, 3, 5]);
+	});
+
+	it('lets skip win over a provider', async () => {
+		const calls: string[] = [];
+		const v = vault({ 'a.md': note });
+		const r = await search({ files: v.files, read: v.read, yieldToUi: never, match: { query: 'cat' }, filter: noFilter, blocks: reader([{ text: 'cat' }], calls), blockModes: { 'rich-table': 'skip' } });
+		expect(calls).toEqual([]);
+		expect(r.ok && r.hits.map((h) => h.line)).toEqual([0, 5]);
+	});
+
+	it('asks the provider once for the same block across searches', async () => {
+		const calls: string[] = [];
+		const cache = new Map<string, ExtractResult>();
+		await run(reader([{ text: 'cat' }], calls), cache);
+		await run(reader([{ text: 'cat' }], calls), cache);
+		expect(calls.length).toBe(1);
+	});
+
+	it('does not cache a failure, so a fixed block is read again', async () => {
+		const calls: string[] = [];
+		const cache = new Map<string, ExtractResult>();
+		await run(reader({ error: 'x' }, calls), cache);
+		await run(reader({ error: 'x' }, calls), cache);
+		expect(calls.length).toBe(2);
+	});
+
+	it('keeps several hits of one block together and in the provider order', async () => {
+		const r = await run(reader([{ text: 'cat 1' }, { text: 'cat 2' }]));
+		expect(r.ok && r.hits.map((h) => h.text)).toEqual(['intro cat', 'cat 1', 'cat 2', 'outro cat']);
+	});
+});
+
+describe('search: a read that is cancelled', () => {
+	it('is not counted as a file that could not be read, and is not cached', async () => {
+		const controller = new AbortController();
+		const cache = new Map<string, ExtractResult>();
+		const reader: BinaryReader = {
+			handles: (p) => p.endsWith('.pdf'),
+			version: () => 1,
+			mtime: async () => 1,
+			read: async () => new ArrayBuffer(1),
+			extract: async (_p, _b, signal) => { controller.abort(); return signal?.aborted ? { ok: false, error: 'Cancelled' } : { ok: true, value: [] }; },
+		};
+		const r = await search({ files: [{ path: 'a.pdf' }], read: () => Promise.resolve(''), yieldToUi: never, match: { query: 'x' }, filter: noFilter, binary: reader, cache, signal: controller.signal });
+		expect(r.ok && r.failed).toEqual([]);
+		expect(cache.size).toBe(0);
+	});
+});
+
+describe('search: results appear while it runs', () => {
+	const clocked = (perFile: number) => {
+		let t = 0;
+		const v = vault(Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`n${i}.md`, 'cat'])));
+		const read = async (path: string): Promise<string> => { t += perFile; return v.read(path); };
+		return { v, read, now: () => t };
+	};
+
+	it('reports again within a batch when files are slow, instead of waiting for the batch to end', async () => {
+		const c = clocked(200);
+		const seen: number[] = [];
+		await search({ files: c.v.files, read: c.read, yieldToUi: never, match: { query: 'cat' }, filter: noFilter, batchSize: 50, now: c.now, onProgress: (p) => seen.push(p.newHits.length) });
+		expect(seen.slice(0, 3)).toEqual([1, 1, 1]);
+	});
+
+	it('does not report after every fast file, which would redraw thousands of times', async () => {
+		const c = clocked(1);
+		const seen: number[] = [];
+		await search({ files: c.v.files, read: c.read, yieldToUi: never, match: { query: 'cat' }, filter: noFilter, batchSize: 50, now: c.now, onProgress: (p) => seen.push(p.newHits.length) });
+		expect(seen).toEqual([6]);
+	});
+
+	it('stops between files of a batch once cancelled', async () => {
+		const c = clocked(1);
+		const controller = new AbortController();
+		const read = async (path: string): Promise<string> => { if (path === 'n1.md') controller.abort(); return c.read(path); };
+		const r = await search({ files: c.v.files, read, yieldToUi: never, match: { query: 'cat' }, filter: noFilter, batchSize: 50, signal: controller.signal });
+		expect(r.ok && r.cancelled).toBe(true);
+		expect(r.ok && r.hits.length).toBe(2);
+	});
+});
+
+describe('search: a slow document does not hold back the notes', () => {
+	it('searches notes first and has reported their hits before the first document is read', async () => {
+		const v = vault({ 'a.pdf': '', 'b.md': 'cat', 'c.md': 'cat' });
+		let reportedSoFar = 0;
+		const reported: number[] = [];
+		let reportedWhenDocumentWasRead = -1;
+		const reader: BinaryReader = {
+			handles: (p) => p.endsWith('.pdf'),
+			version: () => 1,
+			mtime: async () => 1,
+			read: async () => new ArrayBuffer(1),
+			extract: async () => { reportedWhenDocumentWasRead = reportedSoFar; return { ok: true, value: [{ text: 'cat', location: 'Page 1', anchor: { page: 1 } }] }; },
+		};
+		const r = await search({ files: v.files, read: v.read, yieldToUi: never, match: { query: 'cat' }, filter: noFilter, binary: reader, onProgress: (p) => { reportedSoFar += p.newHits.length; reported.push(reportedSoFar); } });
+		expect(reportedWhenDocumentWasRead).toBe(2);
+		expect(r.ok && r.hits.map((h) => h.path)).toEqual(['b.md', 'c.md', 'a.pdf']);
+	});
+});
+
+describe('search: yielding by time', () => {
+	const timed = (perFile: number, count = 10) => {
+		let t = 0;
+		const v = vault(Object.fromEntries(Array.from({ length: count }, (_, i) => [`n${i}.md`, 'x'])));
+		const read = async (path: string): Promise<string> => { t += perFile; return v.read(path); };
+		return { v, read, now: () => t };
+	};
+
+	it('gives the UI a turn once a stretch of work has taken too long, however few files that was', async () => {
+		const c = timed(10);
+		const readsAtYield: number[] = [];
+		await search({ files: c.v.files, read: c.read, now: c.now, yieldToUi: () => { readsAtYield.push(c.v.reads.length); return Promise.resolve(); }, match: { query: 'x' }, filter: noFilter, batchSize: 50 });
+		expect(readsAtYield).toEqual([2, 4, 6, 8]);
+	});
+
+	it('does not give the UI a turn after every fast file', async () => {
+		const c = timed(1);
+		let yields = 0;
+		await search({ files: c.v.files, read: c.read, now: c.now, yieldToUi: () => { yields++; return Promise.resolve(); }, match: { query: 'x' }, filter: noFilter, batchSize: 50 });
+		expect(yields).toBe(0);
+	});
+
+	it('still caps the files read between turns, whatever the clock says', async () => {
+		const c = timed(0, 5);
+		const readsAtYield: number[] = [];
+		await search({ files: c.v.files, read: c.read, now: c.now, yieldToUi: () => { readsAtYield.push(c.v.reads.length); return Promise.resolve(); }, match: { query: 'x' }, filter: noFilter, batchSize: 2 });
+		expect(readsAtYield).toEqual([2, 4]);
 	});
 });

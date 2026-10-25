@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeColor, readableTextColor } from '../src/color';
+import { matchVariables, normalizeColor, readableTextColor } from '../src/color';
 
 describe('normalizeColor', () => {
 	const fallback = '#ccff00';
@@ -47,5 +47,12 @@ describe('readableTextColor', () => {
 
 	it('returns black for something that is not a colour, so text stays readable on the default light mark', () => {
 		expect(readableTextColor('nonsense')).toBe('#000000');
+	});
+});
+
+describe('matchVariables', () => {
+	it('gives the background and the text colour that reads on it, under the names the other plugins read', () => {
+		expect(matchVariables('#ccff00')).toEqual({ '--rs-match-bg': '#ccff00', '--rs-match-fg': '#000000' });
+		expect(matchVariables('#102030')).toEqual({ '--rs-match-bg': '#102030', '--rs-match-fg': '#ffffff' });
 	});
 });

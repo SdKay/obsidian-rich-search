@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { splitRow, isDelimiterRow, tableAt, tableNumber } from '../src/tablerow';
+import { splitRow, isDelimiterRow, tableAt, tableNumber, tablesOf, cellAtColumn, tableStartingAt } from '../src/tablerow';
 
 describe('splitRow', () => {
 	it('splits a row into cells with their text range, excluding the pipes and the padding spaces', () => {
@@ -182,5 +182,108 @@ describe('tableNumber', () => {
 		const t = ['| a |', '| - |', '', '| x |', '| - |', '| 1 |'].join('\n');
 		expect(tableNumber(t, 0)).toBe(0);
 		expect(tableNumber(t, 5)).toBe(1);
+	});
+});
+
+describe('tablesOf', () => {
+	it('lists every table in reading order, with the lines of its drawn rows (the delimiter row is not drawn)', () => {
+		const t = ['intro', '| a |', '| - |', '| 1 |', '| 2 |', '', '| x |', '| - |', '| 3 |'].join('\n');
+		expect(tablesOf(t)).toEqual([
+			{ start: 1, delimiter: 2, end: 4, rows: [1, 3, 4] },
+			{ start: 6, delimiter: 7, end: 8, rows: [6, 8] },
+		]);
+	});
+
+	it('is empty for a note without a table', () => {
+		expect(tablesOf('# title\ntext | with a pipe')).toEqual([]);
+	});
+
+	it('agrees with tableAt and tableNumber about which line is which drawn row of which table', () => {
+		const t = ['| a | b |', '| - | - |', '| 1 | 2 |', '', 'text', '', '| x |', '| - |', '| 3 |', '| 4 |'].join('\n');
+		const tables = tablesOf(t);
+		tables.forEach((table, number) => {
+			table.rows.forEach((line, row) => {
+				expect(tableNumber(t, line)).toBe(number);
+				expect(tableAt(t, line)?.row).toBe(row);
+			});
+		});
+	});
+
+	it('ignores tables inside code blocks, which are not drawn as tables', () => {
+		const t = ['```', '| a |', '| - |', '| 1 |', '```', '| x |', '| - |', '| 2 |'].join('\n');
+		expect(tablesOf(t)).toHaveLength(1);
+		expect(tablesOf(t)[0]?.start).toBe(5);
+	});
+
+	it('finds nothing in text with no pipe in it, as the full scan would', () => {
+		expect(tablesOf('# title\n\nplain text\n- list\n')).toEqual([]);
+		expect(tablesOf('')).toEqual([]);
+	});
+
+	it('still finds a table whose only pipes are the ones that make it a table', () => {
+		expect(tablesOf('a|b\n-|-\n1|2')).toHaveLength(1);
+	});
+
+	it('splits the note only once however many tables it has', () => {
+		const many = Array.from({ length: 300 }, (_, i) => `| h${i} |\n| - |\n| v${i} |\n`).join('\n');
+		const a = performance.now();
+		const out = tablesOf(many);
+		expect(out).toHaveLength(300);
+		expect(performance.now() - a).toBeLessThan(500);
+	});
+});
+
+describe('cellAtColumn', () => {
+	const row = '| 项目 | DCF 说明 | DCF 备注 |';
+
+	it('gives the cell a source column falls in, and which match of that cell it is', () => {
+		// "DCF" at column 7 is in cell 1, the first match there; the one at column 16 is in cell 2.
+		expect(cellAtColumn(row, row.indexOf('DCF'), { query: 'DCF' })).toEqual({ cell: 1, index: 0 });
+		expect(cellAtColumn(row, row.lastIndexOf('DCF'), { query: 'DCF' })).toEqual({ cell: 2, index: 0 });
+	});
+
+	it('counts matches within the cell, so the second match of a cell is index 1', () => {
+		const two = '| x | DCF and DCF |';
+		expect(cellAtColumn(two, 6, { query: 'DCF' })).toEqual({ cell: 1, index: 0 });
+		expect(cellAtColumn(two, 14, { query: 'DCF' })).toEqual({ cell: 1, index: 1 });
+	});
+
+	it('uses the options of the search to count matches', () => {
+		const mixed = '| a | Dcf DCF |';
+		expect(cellAtColumn(mixed, 10, { query: 'DCF', caseSensitive: true })).toEqual({ cell: 1, index: 0 });
+	});
+
+	it('is undefined for a column on a pipe or in padding, which belongs to no cell', () => {
+		expect(cellAtColumn(row, 0, { query: 'DCF' })).toBeUndefined();
+		expect(cellAtColumn(row, 4, { query: 'DCF' })).toBeUndefined();
+	});
+
+	it('is undefined for a line that is not a table row', () => {
+		expect(cellAtColumn('no pipes here', 3, { query: 'no' })).toBeUndefined();
+	});
+
+	it('skips an escaped pipe, which does not end a cell', () => {
+		const escaped = '| a \\| DCF | b |';
+		expect(cellAtColumn(escaped, escaped.indexOf('DCF'), { query: 'DCF' })).toEqual({ cell: 0, index: 0 });
+	});
+});
+
+describe('tableStartingAt', () => {
+	const note = ['intro', '| a |', '| - |', '| 1 |', '', '| x |', '| - |', '| 2 |', '| 3 |'].join('\n');
+	const tables = tablesOf(note);
+
+	it('gives the table whose first line is the line a widget starts on', () => {
+		expect(tableStartingAt(tables, 1)).toBe(tables[0]);
+		expect(tableStartingAt(tables, 5)).toBe(tables[1]);
+	});
+
+	it('is undefined for a line where no table starts', () => {
+		expect(tableStartingAt(tables, 0)).toBeUndefined();
+		expect(tableStartingAt(tables, 2)).toBeUndefined();
+		expect(tableStartingAt(tables, 99)).toBeUndefined();
+	});
+
+	it('is undefined when the note has no table', () => {
+		expect(tableStartingAt([], 1)).toBeUndefined();
 	});
 });

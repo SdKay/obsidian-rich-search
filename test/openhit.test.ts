@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { planOpen, highlightRanges } from '../src/openhit';
+import { planOpen } from '../src/openhit';
 import type { SearchHit } from '../src/types';
 import type { ExtensionProvider } from '../src/providers';
 
@@ -10,16 +10,10 @@ const sheetHit: SearchHit = { path: 'data/b.xlsx', line: 2, text: 'cat food', sp
 const provider = (extra: Partial<ExtensionProvider> = {}): ExtensionProvider => ({ ext: 'xlsx', status: 'available', plugin: 'Rich Table', viewRegistered: true, ...extra });
 
 describe('planOpen: notes', () => {
-	it('opens a note at its line with the matches, keeping the hit line 0-based', () => {
+	it('opens a note without any position of its own: the line is shown afterwards, by the mode the note opened in', () => {
 		const plan = planOpen(noteHit, query, undefined);
-		expect(plan.eState).toEqual({ line: 4, richSearchSpans: [{ start: 2, end: 5 }, { start: 12, end: 15 }] });
+		expect(plan.eState).toStrictEqual({});
 		expect(plan.note).toBeUndefined();
-	});
-
-	it('hands out its own copy of the spans, so the editor cannot change the hit', () => {
-		const plan = planOpen(noteHit, query, undefined);
-		(plan.eState.richSearchSpans as { start: number }[])[0]!.start = 99;
-		expect(noteHit.spans[0]?.start).toBe(2);
 	});
 
 	it('does not need a provider for a note', () => {
@@ -85,25 +79,33 @@ describe('planOpen: files owned by a provider', () => {
 	});
 });
 
-describe('highlightRanges', () => {
-	it('turns line-relative spans into document offsets', () => {
-		expect(highlightRanges(100, [{ start: 2, end: 5 }, { start: 12, end: 15 }])).toEqual([{ from: 102, to: 105 }, { from: 112, to: 115 }]);
+describe('planOpen: a hit inside a block a provider renders', () => {
+	const blockHit: SearchHit = { path: 'notes/a.md', line: 7, text: 'cat', spans: [{ start: 0, end: 3 }], location: 'Table 1 · row 2', anchor: { r: 2 }, block: { fromLine: 7, language: 'rich-table' } };
+
+	it('scrolls to the block and puts no cursor in it, because a cursor in a fence shows the block as source', () => {
+		const plan = planOpen(blockHit, query, undefined);
+		expect(plan.kind).toBe('block');
+		expect(plan.eState).toEqual({ scroll: 7 });
+		expect(plan.eState).not.toHaveProperty('line');
 	});
 
-	it('returns nothing for no spans', () => {
-		expect(highlightRanges(10, [])).toEqual([]);
+	it('does not depend on the extension provider of the file', () => {
+		expect(planOpen(blockHit, query, provider()).eState).toEqual({ scroll: 7 });
+	});
+});
+
+describe('planOpen: a PDF', () => {
+	const pdfHit: SearchHit = { path: 'docs/a.pdf', line: 40, text: 'cat', spans: [{ start: 0, end: 3 }], location: 'Page 7', anchor: { page: 7 } };
+
+	it('opens the page in Obsidian\'s own viewer, without any plugin', () => {
+		expect(planOpen(pdfHit, query, undefined)).toEqual({ kind: 'pdf', eState: { subpath: '#page=7' } });
 	});
 
-	it('drops empty or reversed spans', () => {
-		expect(highlightRanges(0, [{ start: 3, end: 3 }, { start: 5, end: 2 }, { start: 1, end: 2 }])).toEqual([{ from: 1, to: 2 }]);
+	it('opens the file without a page, and says nothing, when the anchor is not a page', () => {
+		expect(planOpen({ ...pdfHit, anchor: { page: 'x' } }, query, undefined)).toEqual({ kind: 'pdf', eState: {} });
 	});
 
-	it('sorts the ranges, which the editor requires', () => {
-		expect(highlightRanges(0, [{ start: 8, end: 9 }, { start: 1, end: 2 }])).toEqual([{ from: 1, to: 2 }, { from: 8, to: 9 }]);
-	});
-
-	it('clamps ranges to the end of the document', () => {
-		expect(highlightRanges(0, [{ start: 4, end: 20 }], 10)).toEqual([{ from: 4, to: 10 }]);
-		expect(highlightRanges(0, [{ start: 12, end: 20 }], 10)).toEqual([]);
+	it('treats the extension in any case', () => {
+		expect(planOpen({ ...pdfHit, path: 'A.PDF' }, query, undefined).eState).toEqual({ subpath: '#page=7' });
 	});
 });

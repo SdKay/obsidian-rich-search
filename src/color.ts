@@ -24,3 +24,10 @@ export function readableTextColor(background: string): '#000000' | '#ffffff' {
 	const withWhite = 1.05 / (l + 0.05);
 	return withBlack >= withWhite ? '#000000' : '#ffffff';
 }
+
+export const MATCH_VARIABLES = ['--rs-match-bg', '--rs-match-fg'] as const;
+
+/** The CSS variables the match colour is published as (contract 5.9): the colour, and the text colour that reads on it. */
+export function matchVariables(color: string): Record<(typeof MATCH_VARIABLES)[number], string> {
+	return { '--rs-match-bg': color, '--rs-match-fg': readableTextColor(color) };
+}

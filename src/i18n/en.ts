@@ -2,6 +2,7 @@
 export const en = {
 	// Commands
 	commandOpenSearch: 'Open search',
+	menuSearchInFolder: 'Search in folder',
 
 	// Settings tab
 	settingsFilterHeading: 'Search scope',
@@ -38,6 +39,11 @@ export const en = {
 
 	// Search view
 	viewTitle: 'Rich search',
+	historyButton: 'Search history',
+	historyEmpty: 'No searches yet',
+	historyRemove: 'Remove',
+	historyIn: 'in {folders}',
+	historyClear: 'Clear history',
 	clearQuery: 'Clear',
 	removeItem: 'Remove',
 	emptyHint: 'Type to search your notes',

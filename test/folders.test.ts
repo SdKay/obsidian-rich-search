@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { suggestFolders } from '../src/folders';
+import { scopeToFolder, suggestFolders } from '../src/folders';
+import type { FileFilter } from '../src/types';
 
 const all = ['archive', 'archive/old', 'daily', 'projects', 'projects/rich-search', 'projects/rich-table', '读书笔记', '读书笔记/信息检索', 'Notes/Daily'];
 
@@ -60,5 +61,34 @@ describe('suggestFolders', () => {
 
 	it('does not repeat a folder', () => {
 		expect(suggestFolders('a', ['a', 'a', 'a/b'])).toEqual(['a', 'a/b']);
+	});
+});
+
+describe('scopeToFolder', () => {
+	const filter: FileFilter = { allowFolders: ['a', 'b'], denyFolders: ['b/old'], allowExtensions: ['md'], denyExtensions: ['pdf'] };
+
+	it('makes the folder the only included one and clears the excluded ones', () => {
+		expect(scopeToFolder(filter, 'projects/rich-search')).toMatchObject({ allowFolders: ['projects/rich-search'], denyFolders: [] });
+	});
+
+	it('leaves the file types alone', () => {
+		const out = scopeToFolder(filter, 'x');
+		expect(out.allowExtensions).toEqual(['md']);
+		expect(out.denyExtensions).toEqual(['pdf']);
+	});
+
+	it('does not change the filter it was given', () => {
+		scopeToFolder(filter, 'x');
+		expect(filter.allowFolders).toEqual(['a', 'b']);
+		expect(filter.denyFolders).toEqual(['b/old']);
+	});
+
+	it('writes the folder the way the scope panel does, without slashes at the ends', () => {
+		expect(scopeToFolder(filter, '/projects/rich-search/').allowFolders).toEqual(['projects/rich-search']);
+	});
+
+	it('searches everywhere for the vault root, since an empty include list means every folder', () => {
+		expect(scopeToFolder(filter, '/').allowFolders).toEqual([]);
+		expect(scopeToFolder(filter, '').allowFolders).toEqual([]);
 	});
 });

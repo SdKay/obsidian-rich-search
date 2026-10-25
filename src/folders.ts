@@ -1,3 +1,5 @@
+import type { FileFilter } from './types';
+
 const clean = (p: string): string => p.trim().replace(/^\/+/, '').replace(/\/+$/, '');
 
 /**
@@ -25,4 +27,10 @@ export function suggestFolders(query: string, folders: string[], limit = 20): st
 		.sort((a, b) => a.rank - b.rank || a.path.length - b.path.length || a.path.localeCompare(b.path))
 		.slice(0, limit)
 		.map((s) => s.path);
+}
+
+/** The filter for "search in this folder": only that folder, nothing excluded, file types as they were. The vault root means every folder, which is an empty include list. */
+export function scopeToFolder(filter: FileFilter, folder: string): FileFilter {
+	const path = clean(folder);
+	return { ...filter, allowFolders: path === '' ? [] : [path], denyFolders: [] };
 }
