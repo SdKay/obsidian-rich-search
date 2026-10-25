@@ -1,4 +1,4 @@
-import { HistoryCursor, recordState, type SearchState } from './history';
+import { HistoryCursor, recordState, removeState, type SearchState } from './history';
 
 export interface SearchBoxStore {
 	getHistory(): SearchState[];
@@ -32,6 +32,20 @@ export class SearchBoxModel {
 		const before = this.store.getHistory();
 		const after = recordState(before, state);
 		if (after !== before) this.store.setHistory(after);
+	}
+
+	/** Forget one remembered search, by its position in the list. Navigation starts over: its place in the list may have moved. */
+	forget(position: number): void {
+		this.cursor.reset();
+		const before = this.store.getHistory();
+		const after = removeState(before, position);
+		if (after !== before) this.store.setHistory(after);
+	}
+
+	/** Forget every remembered search. */
+	forgetAll(): void {
+		this.cursor.reset();
+		if (this.store.getHistory().length > 0) this.store.setHistory([]);
 	}
 
 	/** Arrow up: the next older search, or undefined when there is none. */

@@ -51,13 +51,14 @@ export interface TypeSourceOptions {
 }
 
 /**
- * The file types the scope can offer: Markdown always; `.excalidraw` when drawings are treated as their
+ * The file types the scope can offer: Markdown and PDF always (Rich Search reads both itself); `.excalidraw` when drawings are treated as their
  * own type; and each format another plugin can read, available when that plugin is installed.
  */
 export function buildFileTypeSources(found: ExtensionProvider[], options: TypeSourceOptions): FileTypeSource[] {
 	const drawing = options.excalidrawPlugin;
 	return [
 		{ ext: 'md', available: true },
+		{ ext: 'pdf', available: true },
 		...(options.excalidraw
 			? [{ ext: 'excalidraw', available: drawing === 'enabled', needs: 'Excalidraw', ...(drawing === 'enabled' ? {} : { hint: drawing === 'disabled' ? 'enable' as const : 'install' as const }) }]
 			: []),

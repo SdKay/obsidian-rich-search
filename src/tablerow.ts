@@ -1,4 +1,6 @@
 import { splitNote } from './blocks';
+import { matchLine } from './match';
+import type { MatchOptions } from './types';
 
 /** One cell of a Markdown table row. `from` and `to` bound its text, without the pipes or the padding spaces. */
 export interface Cell {
@@ -114,4 +116,39 @@ export function tableAt(text: string, line: number): TableLocation | undefined {
 export function tableNumber(text: string, line: number): number | undefined {
 	const index = allTables(scan(text)).findIndex((x) => line >= x.start && line <= x.end && line !== x.delimiter);
 	return index < 0 ? undefined : index;
+}
+
+export interface NoteTable {
+	start: number;
+	delimiter: number;
+	end: number;
+	/** The note line of each row that is drawn, header first. The delimiter row is not drawn. */
+	rows: number[];
+}
+
+/** Every table of a note in reading order, so the rendered tables can be matched to them by position. */
+export function tablesOf(text: string): NoteTable[] {
+	// A table row has a pipe in it. Most notes have none, and this is asked on every scroll of an open note.
+	if (!text.includes('|')) return [];
+	return allTables(scan(text)).map((t) => ({
+		...t,
+		rows: [t.start, ...Array.from({ length: t.end - t.delimiter }, (_, i) => t.delimiter + 1 + i)],
+	}));
+}
+
+/**
+ * Which cell of a table row a match starts in, from its column in the source line, and which match of that cell it is.
+ * A rendered table has no columns of source text, only cells, so the opened match is found as "the n-th match of cell k".
+ * Undefined for a column that is on a pipe or in padding, and for a line that is not a row.
+ */
+export function cellAtColumn(line: string, column: number, query: MatchOptions): { cell: number; index: number } | undefined {
+	const cell = splitRow(line).find((c) => column >= c.from && column < c.to);
+	if (!cell) return undefined;
+	const before = matchLine(cell.text, query).filter((s) => s.start + cell.from < column).length;
+	return { cell: cell.index, index: before };
+}
+
+/** The table whose header is on `line`. A drawn table widget is found by the line it starts on, because Live Preview draws only the tables near the view, so the n-th widget is not the n-th table. */
+export function tableStartingAt(tables: readonly NoteTable[], line: number): NoteTable | undefined {
+	return tables.find((t) => t.start === line);
 }

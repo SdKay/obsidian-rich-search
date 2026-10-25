@@ -2,6 +2,7 @@ import type { Dict } from './en';
 
 export const zh: Dict = {
 	commandOpenSearch: '打开搜索',
+	menuSearchInFolder: '在此目录搜索',
 
 	settingsFilterHeading: '搜索范围',
 	settingsAllowFoldersName: '只搜索这些目录',
@@ -34,6 +35,11 @@ export const zh: Dict = {
 	unreadableFiles: '{count} 个文件无法读取',
 
 	viewTitle: '富搜索',
+	historyButton: '搜索历史',
+	historyEmpty: '还没有搜索记录',
+	historyRemove: '删除',
+	historyIn: '在 {folders}',
+	historyClear: '清空历史',
 	clearQuery: '清除',
 	removeItem: '移除',
 	emptyHint: '输入关键词搜索笔记',

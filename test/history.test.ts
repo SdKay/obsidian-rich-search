@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { HistoryCursor, cloneState, recordState, sameState, sanitizeHistory, type SearchState } from '../src/history';
+import { HistoryCursor, cloneState, describeState, recordState, removeState, sameState, sanitizeHistory, type SearchState } from '../src/history';
 
 const state = (query: string, extra: Partial<SearchState> = {}): SearchState => ({
 	query,
@@ -208,5 +208,59 @@ describe('HistoryCursor', () => {
 		history.length = 1;
 		expect(() => cursor.newer()).not.toThrow();
 		expect(() => cursor.older(state('x'))).not.toThrow();
+	});
+});
+
+describe('removeState', () => {
+	const list = [state('a'), state('b'), state('c')];
+
+	it('removes the entry at that position and keeps the others in order', () => {
+		expect(removeState(list, 1).map((s) => s.query)).toEqual(['a', 'c']);
+		expect(removeState(list, 0).map((s) => s.query)).toEqual(['b', 'c']);
+		expect(removeState(list, 2).map((s) => s.query)).toEqual(['a', 'b']);
+	});
+
+	it('does not change the list it was given', () => {
+		removeState(list, 1);
+		expect(list.map((s) => s.query)).toEqual(['a', 'b', 'c']);
+	});
+
+	it('returns the same list for a position that is not in it', () => {
+		expect(removeState(list, 3)).toBe(list);
+		expect(removeState(list, -1)).toBe(list);
+		expect(removeState(list, 1.5)).toBe(list);
+	});
+
+	it('copes with an empty list', () => {
+		expect(removeState([], 0)).toEqual([]);
+	});
+});
+
+describe('describeState', () => {
+	it('is the query alone for a plain search', () => {
+		expect(describeState(state('cat'))).toBe('cat');
+	});
+
+	it('adds the options that are on, in a fixed order, as VS Code writes them', () => {
+		expect(describeState(state('cat', { caseSensitive: true }))).toBe('cat  [Aa]');
+		expect(describeState(state('cat', { wholeWord: true, regex: true }))).toBe('cat  [ab .*]');
+		expect(describeState(state('cat', { caseSensitive: true, wholeWord: true, regex: true }))).toBe('cat  [Aa ab .*]');
+	});
+
+	it('adds the folders it was limited to', () => {
+		const filter = { allowFolders: ['a', 'b/c'], denyFolders: [], allowExtensions: [], denyExtensions: [] };
+		expect(describeState(state('cat', { filter }), (f) => `in ${f}`)).toBe('cat  in a, b/c');
+		expect(describeState(state('cat', { filter }))).toBe('cat  a, b/c');
+	});
+
+	it('keeps a long query short, with an ellipsis, and does not cut the options off', () => {
+		const long = 'x'.repeat(100);
+		const out = describeState(state(long, { regex: true }));
+		expect(out.startsWith('x'.repeat(40) + '…')).toBe(true);
+		expect(out.endsWith('[.*]')).toBe(true);
+	});
+
+	it('shows a query with a line break on one line', () => {
+		expect(describeState(state('a\nb'))).toBe('a b');
 	});
 });

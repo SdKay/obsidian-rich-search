@@ -3,10 +3,10 @@
 .rs-view { padding: 0; display: flex; flex-direction: column; overflow: hidden; }
 .rs-top { flex: none; display: flex; flex-direction: column; gap: var(--size-4-2); padding: var(--size-4-2) var(--size-4-2) 0; background-color: var(--background-primary); border-bottom: 1px solid var(--background-modifier-border); }
 .rs-results { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; padding: var(--size-4-1) var(--size-4-1) var(--size-4-2) var(--size-4-2); }
-.rs-view .is-hidden { display: none; }
+.rs-view .is-hidden { display: none !important; }
 
 .rs-box { position: relative; }
-.rs-view input.rs-input { width: 100%; padding-right: 92px; }
+.rs-view input.rs-input { width: 100%; padding-right: 114px; }
 .rs-box-actions { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 1px; }
 .rs-box-actions .rs-clear { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; color: var(--text-muted); cursor: pointer; }
 .rs-box-actions .rs-clear:hover { color: var(--text-normal); }
@@ -53,6 +53,10 @@
 .rs-file-body { margin-left: var(--size-4-3); border-left: 1px solid var(--background-modifier-border); }
 .rs-hit { display: flex; gap: var(--size-4-2); padding: var(--size-2-1) var(--size-2-3); cursor: pointer; border-radius: var(--radius-s); font-size: var(--font-ui-small); }
 .rs-hit:hover { background-color: var(--background-modifier-hover); }
+.rs-hit.is-selected { background-color: var(--background-modifier-active-hover); }
+.rs-results:focus-within .rs-hit.is-selected { background-color: var(--interactive-accent); color: var(--text-on-accent); }
+.rs-results:focus-within .rs-hit.is-selected .rs-hit-pos, .rs-results:focus-within .rs-hit.is-selected .rs-hit-text { color: inherit; }
+.rs-results:focus { outline: none; }
 .rs-hit-pos { flex: none; min-width: 28px; text-align: right; color: var(--text-faint); font-variant-numeric: tabular-nums; }
 .rs-hit-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); }
 .rs-mark { background-color: var(--rs-match-bg, #ccff00); color: var(--rs-match-fg, #000000); border-radius: 2px; }
@@ -60,9 +64,25 @@
 .rs-type.is-unavailable { color: var(--text-faint); cursor: default; }
 .rs-type-needs { font-size: var(--font-ui-smaller); color: var(--text-faint); }
 
-.rs-editor-match { background-color: var(--rs-match-bg, #ccff00); color: var(--rs-match-fg, #000000); border-radius: 2px; }
+/* In an open document the matches are dimmed so the one that was opened stands out; the colour setting stays a single value. */
+.rs-editor-match { background-color: color-mix(in srgb, var(--rs-match-bg, #ccff00) 45%, transparent); border-radius: 2px; }
+.rs-active-box { border-radius: 2px; box-shadow: 0 0 0 1px var(--rs-match-fg, #000000); }
+.rs-editor-match.rs-editor-match-active { background-color: var(--rs-match-bg, #ccff00); color: var(--rs-match-fg, #000000); box-shadow: 0 0 0 1px var(--rs-match-fg, #000000); }
 
-::highlight(rs-match) { background-color: var(--rs-match-bg, #ccff00); color: var(--rs-match-fg, #000000); }
+::highlight(rs-match) { background-color: color-mix(in srgb, var(--rs-match-bg, #ccff00) 45%, transparent); }
+::highlight(rs-match-active) { background-color: var(--rs-match-bg, #ccff00); color: var(--rs-match-fg, #000000); }
+/* A PDF's text layer is invisible text drawn over the page image. A text colour would show it a second time, offset from the image's own, so these set only a background, and the active one stays see-through enough to read the word under it. */
+::highlight(rs-match-pdf) { background-color: color-mix(in srgb, var(--rs-match-bg, #ccff00) 40%, transparent); }
+::highlight(rs-match-pdf-active) { background-color: color-mix(in srgb, var(--rs-match-bg, #ccff00) 85%, transparent); }
 
 .rs-more { margin: var(--size-4-2) 0; padding: var(--size-4-1) var(--size-4-2); text-align: center; cursor: pointer; color: var(--text-accent); border-radius: var(--radius-s); }
 .rs-more:hover { background-color: var(--background-modifier-hover); }
+
+.rs-history-popup { position: fixed; z-index: var(--layer-popover, 30); min-width: 180px; max-width: 320px; max-height: 50vh; overflow-y: auto; padding: var(--size-4-1); background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); box-shadow: var(--shadow-s); font-size: var(--font-ui-small); }
+.rs-history-row { display: flex; align-items: center; gap: var(--size-4-2); padding: var(--size-4-1) var(--size-4-2); border-radius: var(--radius-s); cursor: pointer; }
+.rs-history-row:hover { background-color: var(--background-modifier-hover); }
+.rs-history-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-history-x { flex: none; width: 18px; text-align: center; color: var(--text-faint); border-radius: var(--radius-s); }
+.rs-history-x:hover { color: var(--text-error); background-color: var(--background-modifier-hover); }
+.rs-history-clear { margin-top: var(--size-4-1); border-top: 1px solid var(--background-modifier-border); border-radius: 0 0 var(--radius-s) var(--radius-s); color: var(--text-muted); }
+.rs-history-empty { padding: var(--size-4-1) var(--size-4-2); color: var(--text-faint); }

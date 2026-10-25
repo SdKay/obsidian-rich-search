@@ -52,6 +52,25 @@ export interface RichSearchHostApi {
 	apiVersion: 1;
 	/** All matches of `opts` in one text unit, in order. The only implementation of the matching rules. */
 	matchLine(text: string, opts: MatchOptions): Span[];
+	/**
+	 * The search that is currently on screen, or null when the search panel is closed or its query is empty.
+	 * Optional: absent in a rich-search that predates it, which a view treats as "no live highlight".
+	 */
+	currentQuery?(): MatchOptions | null;
+	/**
+	 * Calls `listener` whenever `currentQuery()` would return something different. Returns a function that
+	 * stops the calls; a view must call it when it closes. Optional, together with `currentQuery`.
+	 */
+	onQueryChange?(listener: (query: MatchOptions | null) => void): () => void;
+	/**
+	 * The match the user opened from the results, drawn brighter than the others (section 5.10), or null when none is
+	 * opened, the search changed, or the panel closed. `line` and `index` are 0-based: the line of the note and which
+	 * match on that line. For a match inside a block a provider draws, `block` is set: `fromLine` is the block's
+	 * opening fence and `anchor` is exactly what the provider gave for that line. Optional, together with `onHitChange`.
+	 */
+	currentHit?(): OpenedHit | null;
+	onHitChange?(listener: (hit: OpenedHit | null) => void): () => void;
 }
+export interface OpenedHit { path: string; line: number; index: number; anchor?: unknown; block?: { fromLine: number; anchor: unknown } }
 export interface MatchOptions { query: string; caseSensitive?: boolean; wholeWord?: boolean; regex?: boolean }
 export interface Span { start: number; end: number } // half-open, in UTF-16 code units of `text`

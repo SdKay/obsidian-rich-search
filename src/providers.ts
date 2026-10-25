@@ -1,4 +1,6 @@
+import type { WorkspaceLeaf } from 'obsidian';
 import type { ExtractedLine, ExtractResult, RichSearchProvider } from './richSearchApi';
+import type { MatchOptions } from './types';
 
 /** The plugins that can supply text for file types Obsidian cannot read, and which extensions each is responsible for. */
 export const PROVIDER_PLUGINS = [
@@ -83,6 +85,36 @@ export function findProviders(registry: PluginsLike | undefined): ExtensionProvi
 	return out;
 }
 
+/** A fence language whose content a plugin draws inside notes, and who to ask about it. */
+export interface BlockProvider {
+	language: string;
+	plugin: string;
+	provider: RichSearchProvider;
+}
+
+const hasBlocks = (p: RichSearchProvider): p is RichSearchProvider & { blockLanguages: unknown[]; extractBlock: NonNullable<RichSearchProvider['extractBlock']> } =>
+	Array.isArray(p.blockLanguages) && typeof p.extractBlock === 'function';
+
+/** The fence languages that installed providers render, looked up at call time like findProviders. First plugin in id order wins a language. */
+export function findBlockProviders(registry: PluginsLike | undefined): BlockProvider[] {
+	const out = new Map<string, BlockProvider>();
+	for (const entry of [...PROVIDER_PLUGINS].sort((a, b) => a.id.localeCompare(b.id))) {
+		const raw = (registry?.plugins?.[entry.id] as { richSearch?: unknown } | undefined)?.richSearch;
+		if (!isProvider(raw) || (raw as { apiVersion?: unknown }).apiVersion !== 1 || !hasBlocks(raw)) continue;
+		for (const language of raw.blockLanguages) {
+			if (typeof language !== 'string') continue;
+			const name = language.trim().toLowerCase();
+			if (name !== '' && !out.has(name)) out.set(name, { language: name, plugin: entry.name, provider: raw });
+		}
+	}
+	return [...out.values()];
+}
+
+/** Cache key for what a block shows. A block has no modification time of its own, so its source is part of the key. */
+export function blockCacheKey(path: string, language: string, extractVersion: number, source: string): string {
+	return JSON.stringify(['block', path, language, extractVersion, source]);
+}
+
 /** Cache key for extracted text: a changed file, or a provider that now extracts differently, must not hit. */
 export function cacheKey(path: string, mtime: number, extractVersion: number): string {
 	return JSON.stringify([path, mtime, extractVersion]);
@@ -109,4 +141,32 @@ function isResult(v: unknown): v is ExtractResult {
 	if (o.ok === false) return typeof o.error === 'string';
 	if (o.ok !== true || !Array.isArray(o.value)) return false;
 	return o.value.every((l) => typeof l === 'object' && l !== null && typeof (l as ExtractedLine).text === 'string');
+}
+
+/** Asks the provider for what a block shows. Outside code: whatever it throws or returns becomes a failure. */
+export async function extractBlockWith(
+	entry: BlockProvider,
+	block: { path: string; language: string; source: string },
+): Promise<ExtractResult> {
+	try {
+		const result: unknown = await entry.provider.extractBlock?.(block);
+		if (isResult(result)) return result;
+		return { ok: false, error: `${entry.plugin} returned an unreadable result` };
+	} catch (err) {
+		return { ok: false, error: err instanceof Error ? err.message : String(err) };
+	}
+}
+
+/** Asks the provider to show an anchor in the block it drew. False when it cannot or throws: the user is left at the block. */
+export async function revealBlockWith(
+	entry: BlockProvider,
+	leaf: WorkspaceLeaf,
+	target: { fromLine: number; anchor: unknown },
+	query: MatchOptions,
+): Promise<boolean> {
+	try {
+		return (await entry.provider.revealBlock?.(leaf, target, query)) === true;
+	} catch {
+		return false;
+	}
 }
