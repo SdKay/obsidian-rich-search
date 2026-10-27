@@ -9,5 +9,13 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
-
+	{ version: "0.1.0", date: "2026-10-27", changes: [
+		"chore: prepare the first release metadata",
+		"docs: update README for the new features",
+		"feat: PDF search, brighter opened match, arrow-key navigation, history management",
+		"feat: search panel with scope, history, highlighting and cross-format search",
+		"docs: plan cross-format search for Excel, PowerPoint, Excalidraw and draw.io",
+		"docs: README in English and Chinese in rich-table's style, and interface languages",
+		"chore: scaffold the Rich Search plugin",
+	] },
 ];
