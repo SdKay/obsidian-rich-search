@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-rich-search",
-	"version": "0.0.0",
+	"version": "0.1.0",
 	"description": "Cross-file search: whole-word and regex matching, folder and file-type scope, and results from notes, PDF, Excalidraw, Excel, PowerPoint, draw.io and Visio files, with every match marked where it opens.",
 	"main": "main.js",
 	"type": "module",
