@@ -482,7 +482,7 @@ export class RichSearchView extends ItemView {
 		this.renderSnippet(row.createSpan({ cls: 'rs-hit-text' }), hit);
 	}
 
-	/** Selects a hit and opens it. A click takes the focus into the note; the keyboard leaves it in the list. */
+	/** Selects a hit and opens it. Only Enter takes the focus into the note; a click or an arrow key leaves it in the list, so the arrows keep working. */
 	private openResult(number: number, event: MouseEvent | null, takeFocus: boolean): void {
 		const hit = this.state.all[number];
 		if (!hit) return;
@@ -537,7 +537,7 @@ export class RichSearchView extends ItemView {
 		const number = hitIndexFrom(target);
 		if (number !== undefined && this.state.all[number]) {
 			this.resultsEl.focus({ preventScroll: true });
-			this.openResult(number, event, true);
+			this.openResult(number, event, false);
 			return;
 		}
 
