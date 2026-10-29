@@ -44,6 +44,8 @@ export class QueryState {
 	private listeners = new Set<Listener>();
 	private hit: OpenedHit | null = null;
 	private hitListeners = new Set<HitListener>();
+	private inScope: (path: string) => boolean = () => true;
+	private scopeListeners = new Set<() => void>();
 
 	current(): MatchOptions | null {
 		return this.value ? { ...this.value } : null;
@@ -63,6 +65,29 @@ export class QueryState {
 	onHitChange(listener: HitListener): () => void {
 		this.hitListeners.add(listener);
 		return () => { this.hitListeners.delete(listener); };
+	}
+
+	/** Whether the search covers this file. Everything is covered until a scope is given. */
+	covers(path: string): boolean {
+		return this.inScope(path);
+	}
+
+	/** Gives the rule for which files the search covers, and tells whoever marks files that the answer may have changed. */
+	setScope(inScope: (path: string) => boolean): void {
+		this.inScope = inScope;
+		for (const listener of [...this.scopeListeners]) {
+			try {
+				listener();
+			} catch (err) {
+				console.error('Rich Search: a scope listener failed', err);
+			}
+		}
+	}
+
+	/** Returns a function that stops the calls. */
+	onScopeChange(listener: () => void): () => void {
+		this.scopeListeners.add(listener);
+		return () => { this.scopeListeners.delete(listener); };
 	}
 
 	/** An empty query means there is nothing to mark, the same as no query. */

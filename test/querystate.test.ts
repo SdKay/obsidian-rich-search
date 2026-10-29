@@ -294,3 +294,37 @@ describe('sameHit: two blocks of one note', () => {
 		expect(sameHit(a, b)).toBe(false);
 	});
 });
+
+describe('QueryState: scope', () => {
+	it('covers every path until a scope is given', () => {
+		expect(new QueryState().covers('a/b.drawio')).toBe(true);
+	});
+
+	it('says whether the search covers a path, by the rule it was given', () => {
+		const state = new QueryState();
+		state.setScope((path) => path.startsWith('notes/'));
+		expect(state.covers('notes/a.md')).toBe(true);
+		expect(state.covers('other/b.drawio')).toBe(false);
+	});
+
+	it('tells listeners when the scope changes, and not before there is one', () => {
+		const state = new QueryState();
+		let calls = 0;
+		state.onScopeChange(() => { calls++; });
+		state.setScope(() => true);
+		expect(calls).toBe(1);
+		state.setScope(() => false);
+		expect(calls).toBe(2);
+	});
+
+	it('stops calling a listener that was removed, and survives one that throws', () => {
+		const state = new QueryState();
+		let calls = 0;
+		const stop = state.onScopeChange(() => { calls++; });
+		state.onScopeChange(() => { throw new Error('boom'); });
+		state.setScope(() => true);
+		stop();
+		state.setScope(() => false);
+		expect(calls).toBe(1);
+	});
+});

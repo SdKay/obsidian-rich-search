@@ -46,7 +46,7 @@ describe('createHostApi', () => {
 	});
 
 	it('has exactly the members the contract lists', () => {
-		expect(Object.keys(createHostApi(new QueryState())).sort()).toEqual(['apiVersion', 'currentHit', 'currentQuery', 'matchLine', 'onHitChange', 'onQueryChange']);
+		expect(Object.keys(createHostApi(new QueryState())).sort()).toEqual(['apiVersion', 'currentHit', 'currentQuery', 'inScope', 'matchLine', 'onHitChange', 'onQueryChange', 'onScopeChange']);
 	});
 });
 
@@ -63,5 +63,20 @@ describe('createHostApi: the opened hit', () => {
 		stop?.();
 		state.setHit({ path: 'a.md', line: 5, index: 0 });
 		expect(seen).toEqual([{ path: 'a.md', line: 4, index: 0 }]);
+	});
+
+	it('says which files the search covers, and tells a view when that changes', () => {
+		const state = new QueryState();
+		const api = createHostApi(state);
+		expect(api.inScope?.('a/b.drawio')).toBe(true);
+		let calls = 0;
+		const stop = api.onScopeChange?.(() => { calls++; });
+		state.setScope((path) => path.startsWith('notes/'));
+		expect(api.inScope?.('notes/a.md')).toBe(true);
+		expect(api.inScope?.('a/b.drawio')).toBe(false);
+		expect(calls).toBe(1);
+		stop?.();
+		state.setScope(() => true);
+		expect(calls).toBe(1);
 	});
 });

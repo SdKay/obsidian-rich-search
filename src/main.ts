@@ -8,6 +8,7 @@ import { Watches } from './observed';
 import { editorHighlight, markHit, markQuery, setViewChangeListener } from './editor-highlight';
 import { paintPage, type PageSource } from './table-highlight';
 import { createHostApi } from './hostapi';
+import { inScope } from './scope';
 import { QueryState, type OpenedHit } from './querystate';
 import type { RichSearchHostApi } from './richSearchApi';
 import { RichSearchSettingTab } from './settings-tab';
@@ -28,6 +29,7 @@ export default class RichSearchPlugin extends Plugin {
 
 	async onload(): Promise<void> {
 		this.settings = loadSettings((await this.loadData()) as Partial<RichSearchSettings> | null);
+		this.query.setScope((path) => inScope(path, this.settings));
 
 		// The panel comes first: a failure in the highlighting below must never leave the panel unregistered (a blank leaf).
 		this.addSettingTab(new RichSearchSettingTab(this.app, this));
@@ -54,6 +56,20 @@ export default class RichSearchPlugin extends Plugin {
 		} catch (error) {
 			console.error('Rich Search: highlighting could not start', error);
 		}
+	}
+
+	/** Set once highlighting has started: marks the open notes again. */
+	private refreshMarks: () => void = () => {};
+
+	/** Whether the search covers this file. A file with no path (a note not saved yet) is treated as covered. */
+	private covers(path: string | undefined): boolean {
+		return path === undefined || inScope(path, this.settings);
+	}
+
+	/** The folders or file types of the search changed: the marks in the open notes follow them. */
+	rescope(): void {
+		this.query.setScope((path) => inScope(path, this.settings));
+		this.refreshMarks();
 	}
 
 	/** The opened match as a rendered page can find it: the file, the line's text and which match on it. */
@@ -140,6 +156,7 @@ export default class RichSearchPlugin extends Plugin {
 			pdfPages.keepOnly(viewers);
 			repaint();
 		};
+		this.refreshMarks = refresh;
 		this.register(this.query.onChange(refresh));
 		this.register(this.query.onHitChange(refresh));
 		// A note opened later, or switched between reading and editing, starts with the search already on screen.
