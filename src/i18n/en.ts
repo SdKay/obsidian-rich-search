@@ -18,6 +18,11 @@ export const en = {
 	settingsExcalidrawName: 'Treat .excalidraw.md as Excalidraw drawings',
 	settingsExcalidrawDesc: 'Search a drawing by the words in it, and choose it separately from .md under file types. When off, a drawing is an ordinary note and is searched as plain text.',
 
+	settingsOpenInName: 'Open results in',
+	settingsOpenInDesc: 'Where a result opens when the search panel is in its own window. In the main window, the note opens there. In the panel\'s window, it opens to the left of the panel.',
+	settingsOpenInMain: 'Main window',
+	settingsOpenInPanel: 'The window of the panel',
+
 	settingsMatchColorName: 'Match highlight colour',
 	settingsMatchColorDesc: 'The background behind the words that matched your search, in results and in the notes you open.',
 	settingsMatchColorReset: 'Reset to default',

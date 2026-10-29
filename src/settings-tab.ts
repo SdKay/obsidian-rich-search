@@ -22,6 +22,18 @@ export class RichSearchSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
+		new Setting(containerEl)
+			.setName(t('settingsOpenInName'))
+			.setDesc(t('settingsOpenInDesc'))
+			.addDropdown((dropdown) => dropdown
+				.addOption('main', t('settingsOpenInMain'))
+				.addOption('panel', t('settingsOpenInPanel'))
+				.setValue(this.plugin.settings.openIn)
+				.onChange(async (value) => {
+					this.plugin.settings.openIn = value === 'panel' ? 'panel' : 'main';
+					await this.plugin.saveSettings();
+				}));
+
 		// The picker fires on every step of a drag: show the colour at once, write the file once it settles.
 		let picker: ColorComponent | undefined;
 		const save = debounce(() => { void this.plugin.saveSettings(); }, 400, true);

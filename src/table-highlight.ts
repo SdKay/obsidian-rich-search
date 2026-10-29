@@ -1,4 +1,5 @@
 import { matchLine } from './match';
+import { groupByWindow } from './bywindow';
 import { activeRangeIn, rangesInBlocks, type TextPiece } from './blocktext';
 import { MARK_LIMIT } from './linematches';
 import { boxRange, clearBox } from './activebox';
@@ -28,6 +29,19 @@ export interface OpenedLine {
 
 const supported = (): boolean => typeof CSS !== 'undefined' && 'highlights' in CSS;
 
+type Registry = { highlights: Map<string, unknown> & { delete(name: string): boolean; set(name: string, value: unknown): unknown } };
+
+/** The highlight registry of a window and its Highlight class. A pop-out window has its own, and a highlight made with another window's is not drawn there. */
+function registryOf(win: Window): { registry: Registry['highlights']; Highlight: typeof Highlight } | undefined {
+	const w = win as unknown as { CSS?: Registry; Highlight?: typeof Highlight };
+	return w.CSS?.highlights && w.Highlight ? { registry: w.CSS.highlights, Highlight: w.Highlight } : undefined;
+}
+
+const windowOfRange = (range: Range): Window | null => range.startContainer.ownerDocument?.defaultView ?? null;
+
+/** The windows the marks were last written to, so the next paint can take them away from windows that no longer have any. */
+let painted = new Set<Window>();
+
 /** The text nodes of a cell, in order, skipping the drag-handle icon that sits inside each header cell. */
 function textNodesOf(cell: Element): Text[] {
 	const wrapper = cell.querySelector('.table-cell-wrapper') ?? cell;
@@ -45,7 +59,7 @@ function rangesInCell(cell: Element, query: MatchOptions): Range[] {
 	for (const r of rangesInNodes(text, matchLine(text.join(''), query))) {
 		const node = nodes[r.node];
 		if (!node) continue;
-		const range = new Range();
+		const range = node.ownerDocument.createRange();
 		range.setStart(node, r.start);
 		range.setEnd(node, r.end);
 		out.push(range);
@@ -125,7 +139,7 @@ function rangesInLayer(layer: Element, query: MatchOptions, opened: OpenedLine |
 	found.forEach((r, i) => {
 		const node = texts[nodeOf[r.piece] ?? -1];
 		if (!node) return;
-		const range = new Range();
+		const range = node.ownerDocument.createRange();
 		range.setStart(node, r.start);
 		range.setEnd(node, r.end);
 		out.push(range);
@@ -162,7 +176,7 @@ function rangesInPage(root: Element, query: MatchOptions, opened: OpenedLine | n
 	found.forEach((r, i) => {
 		const node = nodes[r.piece];
 		if (!node) return;
-		const range = new Range();
+		const range = node.ownerDocument.createRange();
 		range.setStart(node, r.start);
 		range.setEnd(node, r.end);
 		out.push(range);
@@ -188,7 +202,7 @@ function rangesInPage(root: Element, query: MatchOptions, opened: OpenedLine | n
 export function paintPage(sources: PageSource[], query: MatchOptions | null, opened: (OpenedLine & { path: string }) | null = null): void {
 	if (!supported()) return;
 	if (!query || query.query === '') {
-		for (const name of [HIGHLIGHT_NAME, ACTIVE_NAME, PDF_NAME, PDF_ACTIVE_NAME]) CSS.highlights.delete(name);
+		clearAllHighlights();
 		clearBox();
 		return;
 	}
@@ -245,8 +259,12 @@ export function paintPage(sources: PageSource[], query: MatchOptions | null, ope
 		});
 	}
 
-	setHighlights(page.ranges, page.active, HIGHLIGHT_NAME, ACTIVE_NAME);
-	setHighlights(pdf.ranges, pdf.active, PDF_NAME, PDF_ACTIVE_NAME);
+	// Start from nothing, so a window that no longer has a match loses its marks.
+	clearAllHighlights();
+	const written = new Set<Window>();
+	setHighlights(page.ranges, page.active, HIGHLIGHT_NAME, ACTIVE_NAME, written);
+	setHighlights(pdf.ranges, pdf.active, PDF_NAME, PDF_ACTIVE_NAME, written);
+	painted = written;
 	drawBox(page.ranges.slice(0, MARK_LIMIT), page.active);
 }
 
@@ -260,17 +278,35 @@ function drawBox(ranges: Range[], active: Range | undefined): void {
 }
 
 
-/** Writes one pair of highlights: all the matches, and the opened one on top. A name with nothing to mark is removed. */
-function setHighlights(ranges: Range[], active: Range | undefined, name: string, activeName: string): void {
+/** Takes every mark away, in every window that has one. A window that has been closed is skipped. */
+function clearAllHighlights(): void {
+	for (const win of painted) {
+		try {
+			const reg = registryOf(win);
+			if (reg) for (const name of [HIGHLIGHT_NAME, ACTIVE_NAME, PDF_NAME, PDF_ACTIVE_NAME]) reg.registry.delete(name);
+		} catch { /* the window was closed */ }
+	}
+	painted = new Set();
+}
+
+/**
+ * Writes one pair of highlights: all the matches, and the opened one on top. Each window gets the ranges that lie
+ * in its own document. A name with nothing to mark is removed from the windows that had it.
+ */
+function setHighlights(ranges: Range[], active: Range | undefined, name: string, activeName: string, written: Set<Window>): void {
 	const kept = ranges.slice(0, MARK_LIMIT);
-	if (kept.length === 0) CSS.highlights.delete(name);
-	else CSS.highlights.set(name, new Highlight(...kept));
-	if (active && kept.includes(active)) {
-		// Where highlights overlap, the higher priority wins, whichever was registered last.
-		const bright = new Highlight(active);
-		bright.priority = 1;
-		CSS.highlights.set(activeName, bright);
-	} else CSS.highlights.delete(activeName);
+	for (const [win, group] of groupByWindow(kept, windowOfRange)) {
+		const reg = win ? registryOf(win) : undefined;
+		if (!win || !reg) continue;
+		reg.registry.set(name, new reg.Highlight(...group));
+		written.add(win);
+		if (active && group.includes(active)) {
+			// Where highlights overlap, the higher priority wins, whichever was registered last.
+			const bright = new reg.Highlight(active);
+			bright.priority = 1;
+			reg.registry.set(activeName, bright);
+		} else reg.registry.delete(activeName);
+	}
 }
 
 /**

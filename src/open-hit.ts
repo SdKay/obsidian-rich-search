@@ -1,10 +1,12 @@
-import { Keymap, MarkdownView, Notice, TFile, type App, type UserEvent } from 'obsidian';
+import { Keymap, MarkdownView, Notice, TFile, type App, type PaneType, type UserEvent, type WorkspaceLeaf } from 'obsidian';
 import { centerLine, widgetLine } from './editors';
 import { matchStateFor } from './lineoffset';
 import { scrollSettled, shouldHideWhileScrolling } from './scrollsettled';
 import { fmt, t } from './i18n';
 import { planOpen } from './openhit';
+import { planPlace, type OpenIn } from './openplace';
 import { scrollToTableHit } from './table-highlight';
+import { VIEW_TYPE_SEARCH } from './view-type';
 import { revealBlockWith, type BlockProvider, type ExtensionProvider } from './providers';
 import type { MatchOptions, SearchHit } from './types';
 
@@ -24,6 +26,9 @@ export async function openHit(
 	takeFocus = true,
 	/** The plugin that draws the block the hit sits in, when it does. */
 	blockProvider?: BlockProvider,
+	/** The leaf of the search panel, to tell which window the result was asked for from. */
+	panel?: WorkspaceLeaf,
+	openIn: OpenIn = 'main',
 ): Promise<void> {
 	const file = app.vault.getAbstractFileByPath(hit.path);
 	if (!(file instanceof TFile)) {
@@ -32,7 +37,7 @@ export async function openHit(
 	}
 
 	const plan = planOpen(hit, query, provider);
-	const leaf = app.workspace.getLeaf(event ? Keymap.isModEvent(event) : false);
+	const leaf = targetLeaf(app, event ? Keymap.isModEvent(event) : false, panel, openIn);
 	await leaf.openFile(file, { eState: plan.eState, active: takeFocus });
 
 	if (plan.note === 'cannotJump') new Notice(t('openedCannotJump'));
@@ -70,6 +75,28 @@ export async function openHit(
 	});
 }
 
+
+/**
+ * Where a result opens. A panel moved to a pop-out window shares that window's main area with the notes, and
+ * `getLeaf(false)` finds nothing to reuse there, so it makes an empty tab beside the panel. The place is decided in
+ * openplace.ts; this turns it into a leaf.
+ */
+function targetLeaf(app: App, newTab: PaneType | boolean, panel: WorkspaceLeaf | undefined, openIn: OpenIn): WorkspaceLeaf {
+	const container = panel?.getContainer();
+	const inPopout = container !== undefined && container !== app.workspace.rootSplit.getContainer();
+	let popoutNote: WorkspaceLeaf | undefined;
+	if (inPopout) {
+		app.workspace.iterateAllLeaves((leaf) => {
+			if (!popoutNote && leaf !== panel && leaf.getContainer() === container && leaf.view.getViewType() !== VIEW_TYPE_SEARCH) popoutNote = leaf;
+		});
+	}
+	const place = planPlace({ openIn, panelInPopout: inPopout, popoutHasNote: popoutNote !== undefined, newTab: newTab !== false });
+	if (place === 'mainRecent') return app.workspace.getMostRecentLeaf(app.workspace.rootSplit) ?? app.workspace.getLeaf(false);
+	if (place === 'reusePopout' && popoutNote) return popoutNote;
+	// A pop-out window has no sidebar, so the notes go to the left of the panel, as the panel sits at the right of the main window.
+	if (place === 'splitPopout' && panel) return app.workspace.createLeafBySplit(panel, 'vertical', true);
+	return app.workspace.getLeaf(newTab);
+}
 
 const HOLD_LIMIT_MS = 1000;
 

@@ -36,6 +36,16 @@ describe('loadSettings', () => {
 		expect(DEFAULT_SETTINGS.blockModes.foo).toBeUndefined();
 	});
 
+	it('opens results in the main window by default, and keeps a saved choice of the panel', () => {
+		expect(loadSettings(null).openIn).toBe('main');
+		expect(loadSettings({ openIn: 'panel' }).openIn).toBe('panel');
+	});
+
+	it('falls back to the main window when the saved place is not one it knows', () => {
+		expect(loadSettings({ openIn: 'window' as never }).openIn).toBe('main');
+		expect(loadSettings({ openIn: 42 as never }).openIn).toBe('main');
+	});
+
 	it('starts with an empty history', () => {
 		expect(loadSettings(null).history).toEqual([]);
 	});
