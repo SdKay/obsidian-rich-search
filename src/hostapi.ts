@@ -14,5 +14,7 @@ export function createHostApi(query: QueryState): RichSearchHostApi {
 		onQueryChange: (listener) => query.onChange(listener),
 		currentHit: () => query.currentHit(),
 		onHitChange: (listener) => query.onHitChange(listener),
+		inScope: (path) => query.covers(path),
+		onScopeChange: (listener) => query.onScopeChange(listener),
 	} satisfies RichSearchHostApi);
 }

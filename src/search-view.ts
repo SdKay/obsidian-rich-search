@@ -9,7 +9,8 @@ import { appendHits, emptyGroups, showMore, DRAW_STEP, type AppendDiff, type Fil
 import { hitIndexFrom } from './hitindex';
 import { nextSelection, type Row } from './selection';
 import { attachFolderInput } from './folder-input';
-import { scopeToFolder, withAlwaysExcluded } from './folders';
+import { scopeToFolder } from './folders';
+import { effectiveFilter } from './scope';
 import { buildFileTypeSources, fileTypeRows, sameSources, setAllTypes, toggleType, type FileTypeSource } from './filetypes';
 import { cloneState, describeState, type SearchState } from './history';
 import { openHistoryPopup } from './history-popup';
@@ -312,6 +313,8 @@ export class RichSearchView extends ItemView {
 
 	private runSearch(): void {
 		this.running?.abort();
+		// Every change of folders or types ends in a search, and the marks in the open notes cover the same files as the results.
+		this.plugin.rescope();
 		this.clearEl.toggleClass('is-hidden', this.query === '');
 		this.renderScopeSummary();
 		this.errorEl.empty();
@@ -338,7 +341,7 @@ export class RichSearchView extends ItemView {
 			read: (path) => this.readNote(path),
 			yieldToUi: () => new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve())),
 			match: { query: this.query, caseSensitive: this.caseSensitive, wholeWord: this.wholeWord, regex: this.regex },
-			filter: withAlwaysExcluded(settings.filter, settings.alwaysExcludeFolders),
+			filter: effectiveFilter(settings),
 			blockModes: settings.blockModes,
 			excalidraw: settings.excalidraw,
 			binary: this.binaryReader(),

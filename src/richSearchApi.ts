@@ -70,6 +70,14 @@ export interface RichSearchHostApi {
 	 */
 	currentHit?(): OpenedHit | null;
 	onHitChange?(listener: (hit: OpenedHit | null) => void): () => void;
+	/**
+	 * Whether the search covers the file at `path`: the panel's folders and file types, and the folders the settings always
+	 * exclude. A view marks matches in a file only when this is true. Optional, together with `onScopeChange`; absent
+	 * means every file is covered.
+	 */
+	inScope?(path: string): boolean;
+	/** Calls `listener` whenever `inScope` may answer differently. Returns a function that stops the calls. */
+	onScopeChange?(listener: () => void): () => void;
 }
 export interface OpenedHit { path: string; line: number; index: number; anchor?: unknown; block?: { fromLine: number; anchor: unknown } }
 export interface MatchOptions { query: string; caseSensitive?: boolean; wholeWord?: boolean; regex?: boolean }
