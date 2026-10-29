@@ -23,6 +23,17 @@ export class RichSearchSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
+			.setName(t('settingsAlwaysExcludeName'))
+			.setDesc(t('settingsAlwaysExcludeDesc'))
+			.addTextArea((area) => area
+				.setPlaceholder(t('settingsAlwaysExcludePlaceholder'))
+				.setValue(this.plugin.settings.alwaysExcludeFolders.join('\n'))
+				.onChange(async (value) => {
+					this.plugin.settings.alwaysExcludeFolders = value.split('\n').map((line) => line.trim()).filter((line) => line !== '');
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
 			.setName(t('settingsOpenInName'))
 			.setDesc(t('settingsOpenInDesc'))
 			.addDropdown((dropdown) => dropdown

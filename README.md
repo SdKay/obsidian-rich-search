@@ -162,6 +162,7 @@ In the settings tab:
 | Setting | What it does |
 |---|---|
 | Treat .excalidraw.md as Excalidraw drawings | On: a drawing is its own file type, searched by the words in it. Off: it is an ordinary note. |
+| Always exclude folders | One folder per line. They are left out of every search, in addition to the folders excluded in the search panel, and searching in a folder does not bring them back. |
 | Open results in | Where a result opens when the search panel is in its own window. *Main window*: the note opens there. *The window of the panel*: it opens to the left of the panel, and later results reuse that tab. Ctrl/Cmd+click always opens a new tab. |
 | Match highlight colour | The background of matched words, in the results, in opened notes, in PDFs, in tables and in the Rich Table and Rich View views. Neon yellow-green by default. The match you opened uses this colour; the others use a lighter tint of it. |
 

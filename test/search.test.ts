@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { search, type BinaryReader, type SearchFile, type SearchProgress } from '../src/search';
 import type { ExtractedLine, ExtractResult } from '../src/richSearchApi';
+import { scopeToFolder, withAlwaysExcluded } from '../src/folders';
 import type { FileFilter } from '../src/types';
 
 const noFilter: FileFilter = { allowFolders: [], denyFolders: [], allowExtensions: [], denyExtensions: [] };
@@ -50,6 +51,21 @@ describe('search: what is read', () => {
 		const r = await search({ files: v.files, read: v.read, yieldToUi: never, match: { query: 'cat' }, filter });
 		expect(v.reads).toEqual(['notes/b.md']);
 		expect(r.ok && r.hits.map((h) => h.path)).toEqual(['notes/b.md']);
+	});
+
+	it('never reads a folder the settings exclude from every search, even one the panel lists nothing for', async () => {
+		const v = vault({ 'archive/a.md': 'cat', 'notes/b.md': 'cat' });
+		const filter = withAlwaysExcluded(noFilter, ['archive']);
+		const r = await search({ files: v.files, read: v.read, yieldToUi: never, match: { query: 'cat' }, filter });
+		expect(v.reads).toEqual(['notes/b.md']);
+		expect(r.ok && r.hits.map((h) => h.path)).toEqual(['notes/b.md']);
+	});
+
+	it('keeps that folder unread when the search is limited to a folder inside it', async () => {
+		const v = vault({ 'archive/2020/a.md': 'cat', 'notes/b.md': 'cat' });
+		const filter = withAlwaysExcluded(scopeToFolder(noFilter, 'archive/2020'), ['archive']);
+		await search({ files: v.files, read: v.read, yieldToUi: never, match: { query: 'cat' }, filter });
+		expect(v.reads).toEqual([]);
 	});
 
 	it('never reads a file outside the include list', async () => {

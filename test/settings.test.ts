@@ -46,6 +46,21 @@ describe('loadSettings', () => {
 		expect(loadSettings({ openIn: 42 as never }).openIn).toBe('main');
 	});
 
+	it('excludes no folder from every search by default, and keeps a saved list', () => {
+		expect(loadSettings(null).alwaysExcludeFolders).toEqual([]);
+		expect(loadSettings({ alwaysExcludeFolders: ['archive', 'tmp'] }).alwaysExcludeFolders).toEqual(['archive', 'tmp']);
+	});
+
+	it('drops anything in the always-excluded list that is not a string, and ignores a value that is not a list', () => {
+		expect(loadSettings({ alwaysExcludeFolders: ['a', 3, null, 'b'] as never }).alwaysExcludeFolders).toEqual(['a', 'b']);
+		expect(loadSettings({ alwaysExcludeFolders: 'archive' as never }).alwaysExcludeFolders).toEqual([]);
+	});
+
+	it('does not share the always-excluded list with the defaults', () => {
+		loadSettings(null).alwaysExcludeFolders.push('x');
+		expect(DEFAULT_SETTINGS.alwaysExcludeFolders).toEqual([]);
+	});
+
 	it('starts with an empty history', () => {
 		expect(loadSettings(null).history).toEqual([]);
 	});
