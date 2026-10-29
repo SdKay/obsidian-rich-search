@@ -1,5 +1,6 @@
 import { normalizeColor } from './color';
 import { sanitizeHistory, type SearchState } from './history';
+import type { OpenIn } from './openplace';
 import type { BlockMode } from './search';
 import type { FileFilter } from './types';
 
@@ -12,6 +13,8 @@ export interface RichSearchSettings {
 	excalidraw: boolean;
 	/** Background of the words that matched the search, `#rrggbb`. The text colour follows from it. */
 	matchColor: string;
+	/** Where a result opens when the search panel is in a pop-out window: the main window, or beside the panel. */
+	openIn: OpenIn;
 	/** Past searches, oldest first. Only ever appended to; a newer version may add fields to an entry. */
 	history: SearchState[];
 }
@@ -33,6 +36,7 @@ export const DEFAULT_SETTINGS: RichSearchSettings = {
 	blockModes: { 'compressed-json': 'skip' },
 	excalidraw: true,
 	matchColor: '#ccff00',
+	openIn: 'main',
 	history: [],
 };
 
@@ -52,6 +56,7 @@ export function loadSettings(saved: Partial<RichSearchSettings> | null | undefin
 		blockModes: { ...DEFAULT_SETTINGS.blockModes, ...saved?.blockModes },
 		excalidraw: typeof saved?.excalidraw === 'boolean' ? saved.excalidraw : DEFAULT_SETTINGS.excalidraw,
 		matchColor: normalizeColor(saved?.matchColor, DEFAULT_SETTINGS.matchColor),
+		openIn: saved?.openIn === 'panel' ? 'panel' : DEFAULT_SETTINGS.openIn,
 		history: sanitizeHistory(saved?.history),
 	};
 }

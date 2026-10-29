@@ -1,3 +1,4 @@
+import { VIEW_TYPE_SEARCH } from './view-type';
 import { ItemView, setIcon, TFile, type WorkspaceLeaf } from 'obsidian';
 import { openHit } from './open-hit';
 import { extractPdf, pdfExtractVersion } from './pdf-reader';
@@ -17,7 +18,6 @@ import type RichSearchPlugin from './main';
 import { fmt, t } from './i18n';
 import type { FileFilter, MatchOptions, SearchHit } from './types';
 
-export const VIEW_TYPE_SEARCH = 'rich-search-view';
 
 const EXCALIDRAW_PLUGIN_ID = 'obsidian-excalidraw-plugin';
 
@@ -493,7 +493,7 @@ export class RichSearchView extends ItemView {
 			...(hit.block ? { block: { fromLine: hit.block.fromLine, anchor: hit.anchor } } : hit.anchor === undefined ? {} : { anchor: hit.anchor }),
 		});
 		const ext = hit.path.slice(hit.path.lastIndexOf('.') + 1).toLowerCase();
-		void openHit(this.app, hit, this.lastQuery, event, this.providers().find((p) => p.ext === ext), takeFocus, findBlockProviders(pluginRegistry(this.app)).find((b) => b.language === hit.block?.language));
+		void openHit(this.app, hit, this.lastQuery, event, this.providers().find((p) => p.ext === ext), takeFocus, findBlockProviders(pluginRegistry(this.app)).find((b) => b.language === hit.block?.language), this.leaf, this.plugin.settings.openIn);
 	}
 
 	/** Moves the background from the old row to the new one, and keeps the new one in view. */

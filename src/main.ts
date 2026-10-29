@@ -11,7 +11,8 @@ import { createHostApi } from './hostapi';
 import { QueryState, type OpenedHit } from './querystate';
 import type { RichSearchHostApi } from './richSearchApi';
 import { RichSearchSettingTab } from './settings-tab';
-import { RichSearchView, VIEW_TYPE_SEARCH } from './search-view';
+import { RichSearchView } from './search-view';
+import { VIEW_TYPE_SEARCH } from './view-type';
 
 // Keep this file to the plugin lifecycle: load settings, register commands, views and events.
 // Search, filtering and highlighting live in their own modules (pure ones first).

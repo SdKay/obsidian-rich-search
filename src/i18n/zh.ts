@@ -17,6 +17,11 @@ export const zh: Dict = {
 	settingsExcalidrawName: '将 .excalidraw.md 视为 Excalidraw 绘图',
 	settingsExcalidrawDesc: '只搜索绘图里的文字，并在文件类型里与 .md 分开勾选。关闭后，绘图按普通笔记处理，搜索全文。',
 
+	settingsOpenInName: '结果的打开位置',
+	settingsOpenInDesc: '搜索面板在独立窗口里时，结果在哪里打开。选主窗口，笔记在主窗口打开；选面板所在的窗口，笔记在该窗口里、面板的左边打开。',
+	settingsOpenInMain: '主窗口',
+	settingsOpenInPanel: '面板所在的窗口',
+
 	settingsMatchColorName: '匹配高亮颜色',
 	settingsMatchColorDesc: '搜索命中的词在结果列表和打开的笔记中的底色。',
 	settingsMatchColorReset: '恢复默认',
