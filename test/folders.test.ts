@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { scopeToFolder, suggestFolders } from '../src/folders';
+import { scopeToFolder, suggestFolders, withAlwaysExcluded } from '../src/folders';
+import { isAllowed } from '../src/filter';
 import type { FileFilter } from '../src/types';
 
 const all = ['archive', 'archive/old', 'daily', 'projects', 'projects/rich-search', 'projects/rich-table', '读书笔记', '读书笔记/信息检索', 'Notes/Daily'];
@@ -90,5 +91,40 @@ describe('scopeToFolder', () => {
 	it('searches everywhere for the vault root, since an empty include list means every folder', () => {
 		expect(scopeToFolder(filter, '/').allowFolders).toEqual([]);
 		expect(scopeToFolder(filter, '').allowFolders).toEqual([]);
+	});
+});
+
+describe('withAlwaysExcluded', () => {
+	const base: FileFilter = { allowFolders: [], denyFolders: ['drafts'], allowExtensions: ['md'], denyExtensions: [] };
+
+	it('adds the always-excluded folders to the ones excluded in the panel', () => {
+		expect(withAlwaysExcluded(base, ['archive', 'tmp']).denyFolders).toEqual(['drafts', 'archive', 'tmp']);
+	});
+
+	it('leaves the other lists as they were', () => {
+		const out = withAlwaysExcluded({ ...base, allowFolders: ['notes'] }, ['archive']);
+		expect(out.allowFolders).toEqual(['notes']);
+		expect(out.allowExtensions).toEqual(['md']);
+	});
+
+	it('does not repeat a folder that is in both lists', () => {
+		expect(withAlwaysExcluded(base, ['drafts', 'archive']).denyFolders).toEqual(['drafts', 'archive']);
+	});
+
+	it('ignores blank lines', () => {
+		expect(withAlwaysExcluded(base, ['', '  ', 'archive']).denyFolders).toEqual(['drafts', 'archive']);
+	});
+
+	it('returns the filter unchanged for no folders, and never changes the one it was given', () => {
+		expect(withAlwaysExcluded(base, [])).toEqual(base);
+		withAlwaysExcluded(base, ['archive']);
+		expect(base.denyFolders).toEqual(['drafts']);
+	});
+
+	it('keeps a folder out even when the panel asks to search inside it', () => {
+		const inFolder = scopeToFolder(base, 'archive/2020');
+		const filter = withAlwaysExcluded(inFolder, ['archive']);
+		expect(isAllowed('archive/2020/a.md', filter)).toBe(false);
+		expect(isAllowed('notes/a.md', withAlwaysExcluded(base, ['archive']))).toBe(true);
 	});
 });

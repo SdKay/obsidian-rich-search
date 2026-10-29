@@ -34,3 +34,9 @@ export function scopeToFolder(filter: FileFilter, folder: string): FileFilter {
 	const path = clean(folder);
 	return { ...filter, allowFolders: path === '' ? [] : [path], denyFolders: [] };
 }
+
+/** The filter a search runs with: the panel's, plus the folders the settings say to exclude from every search. Neither list is changed. */
+export function withAlwaysExcluded(filter: FileFilter, always: readonly string[]): FileFilter {
+	const extra = always.map((f) => f.trim()).filter((f) => f !== '' && !filter.denyFolders.includes(f));
+	return { ...filter, denyFolders: [...filter.denyFolders, ...new Set(extra)] };
+}

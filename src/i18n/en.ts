@@ -18,6 +18,9 @@ export const en = {
 	settingsExcalidrawName: 'Treat .excalidraw.md as Excalidraw drawings',
 	settingsExcalidrawDesc: 'Search a drawing by the words in it, and choose it separately from .md under file types. When off, a drawing is an ordinary note and is searched as plain text.',
 
+	settingsAlwaysExcludeName: 'Always exclude folders',
+	settingsAlwaysExcludeDesc: 'One folder per line. These folders are left out of every search, in addition to the ones excluded in the search panel, and a search in a folder does not bring them back.',
+	settingsAlwaysExcludePlaceholder: 'archive\ntemplates',
 	settingsOpenInName: 'Open results in',
 	settingsOpenInDesc: 'Where a result opens when the search panel is in its own window. In the main window, the note opens there. In the panel\'s window, it opens to the left of the panel.',
 	settingsOpenInMain: 'Main window',

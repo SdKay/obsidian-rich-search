@@ -9,7 +9,7 @@ import { appendHits, emptyGroups, showMore, DRAW_STEP, type AppendDiff, type Fil
 import { hitIndexFrom } from './hitindex';
 import { nextSelection, type Row } from './selection';
 import { attachFolderInput } from './folder-input';
-import { scopeToFolder } from './folders';
+import { scopeToFolder, withAlwaysExcluded } from './folders';
 import { buildFileTypeSources, fileTypeRows, sameSources, setAllTypes, toggleType, type FileTypeSource } from './filetypes';
 import { cloneState, describeState, type SearchState } from './history';
 import { openHistoryPopup } from './history-popup';
@@ -338,7 +338,7 @@ export class RichSearchView extends ItemView {
 			read: (path) => this.readNote(path),
 			yieldToUi: () => new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve())),
 			match: { query: this.query, caseSensitive: this.caseSensitive, wholeWord: this.wholeWord, regex: this.regex },
-			filter: settings.filter,
+			filter: withAlwaysExcluded(settings.filter, settings.alwaysExcludeFolders),
 			blockModes: settings.blockModes,
 			excalidraw: settings.excalidraw,
 			binary: this.binaryReader(),

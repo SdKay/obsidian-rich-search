@@ -17,6 +17,9 @@ export const zh: Dict = {
 	settingsExcalidrawName: '将 .excalidraw.md 视为 Excalidraw 绘图',
 	settingsExcalidrawDesc: '只搜索绘图里的文字，并在文件类型里与 .md 分开勾选。关闭后，绘图按普通笔记处理，搜索全文。',
 
+	settingsAlwaysExcludeName: '始终排除的目录',
+	settingsAlwaysExcludeDesc: '每行一个目录。这些目录在每次搜索中都会被排除，和搜索面板里设置的排除目录叠加，“在此目录搜索”也不会把它们找回来。',
+	settingsAlwaysExcludePlaceholder: 'archive\ntemplates',
 	settingsOpenInName: '结果的打开位置',
 	settingsOpenInDesc: '搜索面板在独立窗口里时，结果在哪里打开。选主窗口，笔记在主窗口打开；选面板所在的窗口，笔记在该窗口里、面板的左边打开。',
 	settingsOpenInMain: '主窗口',
