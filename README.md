@@ -62,6 +62,8 @@
 
 A powerful cross-file search tool for Obsidian. It matches whole words and regular expressions, limits the search to the folders and file types you choose, and searches the text inside PDF, Excalidraw, Excel, PowerPoint, draw.io and Visio files as well as Markdown files. Results are listed grouped by file; click one, or step through them with the arrow keys, to jump to the match, which is marked in the original.
 
+![demo](docs/overview.gif)
+
 ---
 
 ## Features
@@ -82,47 +84,6 @@ A powerful cross-file search tool for Obsidian. It matches whole words and regul
 - **PDF files** are searched by the text on each page. Clicking a result opens the page in Obsidian's viewer, and the matches on the pages you scroll through are marked. A scanned PDF with no text layer cannot be searched and is counted among the files that could not be read. The first search of a large PDF takes a while; its text is kept in memory afterwards.
 - **Excel, PowerPoint, draw.io and Visio files** are searched through the Rich Table and Rich View plugins, and clicking a result opens the file at the sheet and cell, the slide, or the shape (see [below](#cross-format-search)).
 - **Many results**: the first 2,000 are shown with the true total above them, and a button shows more. Results appear as they are found, notes first.
-
----
-
-## Demo
-
-<!-- To add a demo: save the GIF under the name shown in each comment below, in docs/, then delete the "coming soon" line and the comment markers around the image line. -->
-
-### Whole word, regex and scope
-
-Type a word, switch on whole word or regular expression, and limit the search to some folders and file types. Results appear as they are found.
-
-> 🎬 *Demo GIF coming soon*
-<!-- ![Whole word, regex and scope demo](docs/demo-01-scope.gif) -->
-
-### Opening a result
-
-Every match stays highlighted in the open note while the panel is open, the one you opened is brighter with an outline, the line is centred, and ↑ / ↓ move through the results.
-
-> 🎬 *Demo GIF coming soon*
-<!-- ![Opening a result demo](docs/demo-02-open.gif) -->
-
-### PDF and Excalidraw
-
-Search the text of PDF pages and the words in an Excalidraw drawing. A PDF opens at its page with the matches marked; a drawing zooms to the element.
-
-> 🎬 *Demo GIF coming soon*
-<!-- ![PDF and Excalidraw demo](docs/demo-03-pdf-excalidraw.gif) -->
-
-### Excel, PowerPoint, draw.io and Visio
-
-With Rich Table and Rich View installed, their content is searched along with your notes. A result opens at its sheet and cell, its slide, or its shape.
-
-> 🎬 *Demo GIF coming soon*
-<!-- ![Cross-format search demo](docs/demo-04-cross-format.gif) -->
-
-### History and searching in a folder
-
-Open the history list to pick, forget or clear earlier searches. Right-click a folder in the file explorer to search only inside it.
-
-> 🎬 *Demo GIF coming soon*
-<!-- ![History and folder search demo](docs/demo-05-history-folder.gif) -->
 
 ---
 
