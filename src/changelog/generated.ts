@@ -9,6 +9,13 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+	{ version: "0.1.1", date: "2026-11-01", changes: [
+		"docs: update",
+		"feat: mark matches only in files the search covers, and tell other plugins which files those are",
+		"feat: exclude chosen folders from every search from the settings",
+		"feat: choose whether results open in the main window or beside a pop-out panel",
+		"fix: keep the focus in the results list after clicking a result, so the arrow keys keep working",
+	] },
 	{ version: "0.1.0", date: "2026-10-27", changes: [
 		"chore: prepare the first release metadata",
 		"docs: update README for the new features",
