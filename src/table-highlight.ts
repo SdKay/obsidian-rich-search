@@ -232,6 +232,12 @@ export function paintPage(sources: PageSource[], query: MatchOptions | null, ope
 			continue;
 		}
 		const { note, root, lineOf } = source;
+		// A diagram (mermaid, PlantUML) is an inline SVG that Obsidian or a plugin draws outside the editor's decorations, like a table.
+		// It has no source line to match, so its text is read as drawn. An icon is an SVG with no text and marks nothing.
+		for (const diagram of Array.from(root.querySelectorAll('svg'))) {
+			if (count() >= MARK_LIMIT) break;
+			page.ranges.push(...rangesInPage(diagram, query, null).ranges);
+		}
 		const tables = tablesOf(note);
 		const noteLines = mine?.line === undefined ? [] : note.split(/\r?\n/);
 		// Live Preview draws only the tables near the view, so the n-th widget is not the n-th table of the note.
