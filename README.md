@@ -26,7 +26,6 @@
 
 <p>
   <a href="#features">Features</a> ·
-  <a href="#demo">Demo</a> ·
   <a href="#cross-format-search">Cross-format</a> ·
   <a href="#installation">Install</a> ·
   <a href="#settings">Settings</a> ·
