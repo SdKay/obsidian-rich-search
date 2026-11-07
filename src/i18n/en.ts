@@ -3,6 +3,8 @@ export const en = {
 	// Commands
 	commandOpenSearch: 'Open search',
 	menuSearchInFolder: 'Search in folder',
+	menuSearchHere: 'Search with Rich Search',
+	menuSearchSelection: 'Search selection with Rich Search',
 
 	// Settings tab
 	settingsFilterHeading: 'Search scope',
@@ -46,7 +48,7 @@ export const en = {
 	unreadableFiles: '{count} files could not be read',
 
 	// Search view
-	viewTitle: 'Rich search',
+	viewTitle: 'Rich Search',
 	historyButton: 'Search history',
 	historyEmpty: 'No searches yet',
 	historyRemove: 'Remove',

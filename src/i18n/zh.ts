@@ -3,6 +3,8 @@ import type { Dict } from './en';
 export const zh: Dict = {
 	commandOpenSearch: '打开搜索',
 	menuSearchInFolder: '在此目录搜索',
+	menuSearchHere: 'Rich Search 搜索',
+	menuSearchSelection: 'Rich Search 搜索选中内容',
 
 	settingsFilterHeading: '搜索范围',
 	settingsAllowFoldersName: '只搜索这些目录',
@@ -42,7 +44,7 @@ export const zh: Dict = {
 	showingOf: '已显示 {shown}',
 	unreadableFiles: '{count} 个文件无法读取',
 
-	viewTitle: '富搜索',
+	viewTitle: 'Rich Search',
 	historyButton: '搜索历史',
 	historyEmpty: '还没有搜索记录',
 	historyRemove: '删除',

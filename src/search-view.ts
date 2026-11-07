@@ -293,6 +293,14 @@ export class RichSearchView extends ItemView {
 		this.inputEl.setSelectionRange(end, end);
 	}
 
+	/** Puts a query in the box and searches it now, as if it had been typed and confirmed. The options and the scope stay as they are. */
+	searchFor(query: string): void {
+		this.query = query;
+		this.inputEl.value = query;
+		this.submit();
+		this.focusInput();
+	}
+
 	/** Limits the search to one folder, shows the scope so the change is visible, and searches the query that is already typed. */
 	searchInFolder(folder: string): void {
 		const filter = scopeToFolder(this.plugin.settings.filter, folder);

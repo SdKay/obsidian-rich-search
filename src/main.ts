@@ -9,6 +9,7 @@ import { editorHighlight, markHit, markQuery, setViewChangeListener } from './ed
 import { paintPage, type PageSource } from './table-highlight';
 import { createHostApi } from './hostapi';
 import { inScope } from './scope';
+import { queryFromSelection } from './selectedquery';
 import { QueryState, type OpenedHit } from './querystate';
 import type { RichSearchHostApi } from './richSearchApi';
 import { RichSearchSettingTab } from './settings-tab';
@@ -34,7 +35,7 @@ export default class RichSearchPlugin extends Plugin {
 		// The panel comes first: a failure in the highlighting below must never leave the panel unregistered (a blank leaf).
 		this.addSettingTab(new RichSearchSettingTab(this.app, this));
 		this.registerView(VIEW_TYPE_SEARCH, (leaf) => new RichSearchView(leaf, this));
-		this.addRibbonIcon('text-search', t('commandOpenSearch'), () => { void this.activateView(); });
+		this.addRibbonIcon('text-search', t('viewTitle'), () => { void this.activateView(); });
 
 		// Command ids are stable API once released: never rename one.
 		this.addCommand({
@@ -49,6 +50,15 @@ export default class RichSearchPlugin extends Plugin {
 				.setTitle(t('menuSearchInFolder'))
 				.setIcon('text-search')
 				.onClick(() => { void this.searchInFolder(file.path); }));
+		}));
+
+		// A selection in a note becomes the query; without one the panel just opens. Menu items are not commands, so the plugin name may appear in them.
+		this.registerEvent(this.app.workspace.on('editor-menu', (menu, editor) => {
+			const query = queryFromSelection(editor.getSelection());
+			menu.addItem((item) => item
+				.setTitle(t(query === undefined ? 'menuSearchHere' : 'menuSearchSelection'))
+				.setIcon('text-search')
+				.onClick(() => { void this.openSearch(query); }));
 		}));
 
 		try {
@@ -171,6 +181,13 @@ export default class RichSearchPlugin extends Plugin {
 		await this.activateView();
 		const leaf = this.app.workspace.getLeavesOfType(VIEW_TYPE_SEARCH)[0];
 		if (leaf?.view instanceof RichSearchView) leaf.view.searchInFolder(folder);
+	}
+
+	/** Opens the panel with the cursor in the box, and searches `query` when there is one. */
+	async openSearch(query?: string): Promise<void> {
+		await this.activateView();
+		const leaf = this.app.workspace.getLeavesOfType(VIEW_TYPE_SEARCH)[0];
+		if (query !== undefined && leaf?.view instanceof RichSearchView) leaf.view.searchFor(query);
 	}
 
 	async activateView(): Promise<void> {
