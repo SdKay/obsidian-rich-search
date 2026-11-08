@@ -1,3 +1,5 @@
+import type { PropertyCondition } from './properties';
+
 /** A half-open character range `[start, end)` within one line. */
 export interface Span {
 	start: number;
@@ -33,6 +35,8 @@ export interface FileFilter {
 	denyFolders: string[];
 	allowExtensions: string[];
 	denyExtensions: string[];
+	/** Conditions on the note's properties, all of which must hold. Empty means no condition. Applies to notes only. */
+	properties: PropertyCondition[];
 }
 
 /** One matching line in one file. Lines and columns are 0-based. */

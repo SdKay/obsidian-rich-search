@@ -68,7 +68,8 @@ describe('loadSettings', () => {
 	it('keeps saved history entries that are well formed and drops the rest', () => {
 		const good = { query: 'a', caseSensitive: false, wholeWord: true, regex: false, filter: { allowFolders: [], denyFolders: ['x'], allowExtensions: [], denyExtensions: [] } };
 		const loaded = loadSettings({ history: [good, { query: 5 }, null] as never });
-		expect(loaded.history).toEqual([good]);
+		// An entry saved before conditions existed is kept, and read as having none.
+		expect(loaded.history).toEqual([{ ...good, filter: { ...good.filter, properties: [] } }]);
 	});
 
 	it('ignores a history that is not a list', () => {
@@ -109,5 +110,39 @@ describe('loadSettings', () => {
 
 	it('falls back to the default for a saved value that is not a colour', () => {
 		for (const bad of ['red', '', 5, null, '#12']) expect(loadSettings({ matchColor: bad as never }).matchColor).toBe('#ccff00');
+	});
+
+	it('has no property condition by default', () => {
+		expect(loadSettings(null).filter.properties).toEqual([]);
+		expect(DEFAULT_SETTINGS.filter.properties).toEqual([]);
+	});
+
+	it('loads settings saved before conditions existed, with none, and keeps the rest of the scope', () => {
+		const saved = { filter: { allowFolders: ['notes'], denyFolders: ['old'], allowExtensions: [], denyExtensions: [] } };
+		const loaded = loadSettings(saved as never);
+		expect(loaded.filter.properties).toEqual([]);
+		expect(loaded.filter.allowFolders).toEqual(['notes']);
+		expect(loaded.filter.denyFolders).toEqual(['old']);
+	});
+
+	it('keeps saved conditions', () => {
+		const cond = [{ key: 'status', op: 'in', values: ['todo'] }];
+		const loaded = loadSettings({ filter: { allowFolders: [], denyFolders: [], allowExtensions: [], denyExtensions: [], properties: cond } } as never);
+		expect(loaded.filter.properties).toEqual(cond);
+	});
+
+	it('drops a malformed saved condition and keeps the others', () => {
+		const raw = [{ key: 'ok', op: 'set' }, { key: '', op: 'set' }, 'junk', { key: 'x', op: 'nope' }];
+		const loaded = loadSettings({ filter: { properties: raw } } as never);
+		expect(loaded.filter.properties).toEqual([{ key: 'ok', op: 'set' }]);
+	});
+
+	it('does not share the conditions with the defaults or with the saved data', () => {
+		const saved = { filter: { properties: [{ key: 'a', op: 'in', values: ['x'] }] } };
+		const loaded = loadSettings(saved as never);
+		loaded.filter.properties.push({ key: 'b', op: 'set' });
+		loaded.filter.properties[0]?.values?.push('y');
+		expect(DEFAULT_SETTINGS.filter.properties).toEqual([]);
+		expect(saved.filter.properties).toEqual([{ key: 'a', op: 'in', values: ['x'] }]);
 	});
 });

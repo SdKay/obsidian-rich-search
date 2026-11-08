@@ -6,7 +6,7 @@ const state = (query: string, extra: Partial<SearchState> = {}): SearchState => 
 	caseSensitive: false,
 	wholeWord: false,
 	regex: false,
-	filter: { allowFolders: [], denyFolders: [], allowExtensions: [], denyExtensions: [] },
+	filter: { allowFolders: [], denyFolders: [], allowExtensions: [], denyExtensions: [], properties: [] },
 	...extra,
 });
 
@@ -31,7 +31,7 @@ describe('sameState', () => {
 
 describe('cloneState', () => {
 	it('copies the scope lists so editing one state never changes the other', () => {
-		const a = state('a', { filter: { allowFolders: ['n'], denyFolders: [], allowExtensions: [], denyExtensions: [] } });
+		const a = state('a', { filter: { allowFolders: ['n'], denyFolders: [], allowExtensions: [], denyExtensions: [], properties: [] } });
 		const b = cloneState(a);
 		b.filter.allowFolders.push('m');
 		expect(a.filter.allowFolders).toEqual(['n']);
@@ -262,5 +262,48 @@ describe('describeState', () => {
 
 	it('shows a query with a line break on one line', () => {
 		expect(describeState(state('a\nb'))).toBe('a b');
+	});
+});
+
+describe('history and property conditions', () => {
+	const cond = [{ key: 'status', op: 'in' as const, values: ['todo', 'doing'] }];
+	const withProps = (query: string) => state(query, { filter: { ...state('x').filter, properties: cond } });
+
+	it('loads a search saved before conditions existed, as one with none, and keeps it', () => {
+		const old = { query: 'cat', caseSensitive: false, wholeWord: false, regex: false, filter: { allowFolders: ['n'], denyFolders: [], allowExtensions: [], denyExtensions: [] } };
+		const loaded = sanitizeHistory([old]);
+		expect(loaded).toHaveLength(1);
+		expect(loaded[0]?.filter.properties).toEqual([]);
+		expect(loaded[0]?.filter.allowFolders).toEqual(['n']);
+	});
+
+	it('keeps the conditions of a search through a save and a load', () => {
+		const loaded = sanitizeHistory(JSON.parse(JSON.stringify([withProps('cat')])));
+		expect(loaded[0]?.filter.properties).toEqual(cond);
+	});
+
+	it('drops a malformed condition and keeps the search', () => {
+		const raw = { ...withProps('cat'), filter: { ...withProps('cat').filter, properties: [{ key: 'ok', op: 'set' }, { key: '', op: 'set' }, 'junk'] } };
+		const loaded = sanitizeHistory([raw]);
+		expect(loaded).toHaveLength(1);
+		expect(loaded[0]?.filter.properties).toEqual([{ key: 'ok', op: 'set' }]);
+	});
+
+	it('clones the conditions so changing a row does not change the history', () => {
+		const original = withProps('cat');
+		const copy = cloneState(original);
+		copy.filter.properties[0]?.values?.push('done');
+		expect(original.filter.properties[0]?.values).toEqual(['todo', 'doing']);
+	});
+
+	it('tells two searches apart when only their conditions differ', () => {
+		expect(sameState(withProps('cat'), state('cat'))).toBe(false);
+		expect(sameState(withProps('cat'), withProps('cat'))).toBe(true);
+		expect(sameState(state('cat'), withProps('cat'))).toBe(false);
+	});
+
+	it('records two searches that differ only in their conditions as two entries', () => {
+		expect(recordState([state('cat')], withProps('cat'))).toHaveLength(2);
+		expect(recordState([withProps('cat')], withProps('cat'))).toHaveLength(1);
 	});
 });

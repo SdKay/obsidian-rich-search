@@ -1,4 +1,5 @@
 import { normalizeColor } from './color';
+import { readConditions } from './properties';
 import { sanitizeHistory, type SearchState } from './history';
 import type { OpenIn } from './openplace';
 import type { BlockMode } from './search';
@@ -33,6 +34,7 @@ export const DEFAULT_SETTINGS: RichSearchSettings = {
 		allowExtensions: [],
 		// Typical sources of base64-like noise in a notes vault.
 		denyExtensions: [],
+		properties: [],
 	},
 	// Excalidraw's drawing payload: base64-like noise. The readable "Text Elements" section outside it stays searchable.
 	blockModes: { 'compressed-json': 'skip' },
@@ -55,6 +57,7 @@ export function loadSettings(saved: Partial<RichSearchSettings> | null | undefin
 			denyFolders: [...filter.denyFolders],
 			allowExtensions: [...filter.allowExtensions],
 			denyExtensions: [...filter.denyExtensions],
+			properties: readConditions((saved?.filter as { properties?: unknown } | undefined)?.properties),
 		},
 		blockModes: { ...DEFAULT_SETTINGS.blockModes, ...saved?.blockModes },
 		excalidraw: typeof saved?.excalidraw === 'boolean' ? saved.excalidraw : DEFAULT_SETTINGS.excalidraw,

@@ -4,7 +4,7 @@ import type { ExtractedLine, ExtractResult } from '../src/richSearchApi';
 import { scopeToFolder, withAlwaysExcluded } from '../src/folders';
 import type { FileFilter } from '../src/types';
 
-const noFilter: FileFilter = { allowFolders: [], denyFolders: [], allowExtensions: [], denyExtensions: [] };
+const noFilter: FileFilter = { allowFolders: [], denyFolders: [], allowExtensions: [], denyExtensions: [], properties: [] };
 
 function vault(notes: Record<string, string>) {
 	const reads: string[] = [];
@@ -66,6 +66,41 @@ describe('search: what is read', () => {
 		const filter = withAlwaysExcluded(scopeToFolder(noFilter, 'archive/2020'), ['archive']);
 		await search({ files: v.files, read: v.read, yieldToUi: never, match: { query: 'cat' }, filter });
 		expect(v.reads).toEqual([]);
+	});
+
+	it('never reads a note whose properties do not meet the conditions', async () => {
+		const v = vault({ 'a.md': 'cat', 'b.md': 'cat', 'c.md': 'cat' });
+		const props: Record<string, Record<string, unknown> | undefined> = { 'a.md': { status: 'doing' }, 'b.md': { status: 'done' }, 'c.md': undefined };
+		const filter = { ...noFilter, properties: [{ key: 'status', op: 'is' as const, values: ['doing'] }] };
+		const r = await search({ files: v.files, read: v.read, yieldToUi: never, match: { query: 'cat' }, filter, properties: (path) => ({ found: true, frontmatter: props[path] }) });
+		expect(v.reads).toEqual(['a.md']);
+		expect(r.ok && r.hits.map((h) => h.path)).toEqual(['a.md']);
+	});
+
+	it('does not look up the properties of a file the path filter already denied', async () => {
+		const v = vault({ 'archive/a.md': 'cat', 'notes/b.md': 'cat' });
+		const asked: string[] = [];
+		const filter = { ...noFilter, denyFolders: ['archive'], properties: [{ key: 'k', op: 'unset' as const }] };
+		await search({ files: v.files, read: v.read, yieldToUi: never, match: { query: 'cat' }, filter, properties: (path) => { asked.push(path); return { found: true, frontmatter: {} }; } });
+		expect(asked).toEqual(['notes/b.md']);
+	});
+
+	it('reads a note the cache does not know yet, so results are not hidden while it fills in', async () => {
+		const v = vault({ 'a.md': 'cat' });
+		const filter = { ...noFilter, properties: [{ key: 'status', op: 'is' as const, values: ['doing'] }] };
+		const r = await search({ files: v.files, read: v.read, yieldToUi: never, match: { query: 'cat' }, filter, properties: () => ({ found: false }) });
+		expect(v.reads).toEqual(['a.md']);
+		expect(r.ok && r.hits).toHaveLength(1);
+	});
+
+	it('leaves out a file that is not a note while a condition is active, without asking its properties', async () => {
+		const files = [{ path: 'a.md' }, { path: 'b.pdf' }];
+		const asked: string[] = [];
+		const binary = { handles: (p: string) => p.endsWith('.pdf'), version: () => 1, mtime: () => Promise.resolve(1), read: () => Promise.resolve(new ArrayBuffer(0)), extract: () => Promise.resolve({ ok: true as const, value: [{ text: 'cat', location: 'p1' }] }) };
+		const filter = { ...noFilter, properties: [{ key: 'k', op: 'unset' as const }] };
+		const r = await search({ files, read: () => Promise.resolve('cat'), yieldToUi: never, match: { query: 'cat' }, filter, binary, properties: (path) => { asked.push(path); return { found: true, frontmatter: {} }; } });
+		expect(r.ok && r.hits.map((h) => h.path)).toEqual(['a.md']);
+		expect(asked).toEqual(['a.md']);
 	});
 
 	it('never reads a file outside the include list', async () => {

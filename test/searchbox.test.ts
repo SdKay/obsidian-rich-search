@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { SearchBoxModel } from '../src/searchbox';
 import type { SearchState } from '../src/history';
 
-const scope = { allowFolders: [], denyFolders: [], allowExtensions: [], denyExtensions: [] };
+const scope = { allowFolders: [], denyFolders: [], allowExtensions: [], denyExtensions: [], properties: [] };
 const state = (query: string, extra: Partial<SearchState> = {}): SearchState => ({
 	query, caseSensitive: false, wholeWord: false, regex: false, filter: { ...scope }, ...extra,
 });
@@ -125,7 +125,7 @@ describe('SearchBoxModel: managing the history', () => {
 		const model = new SearchBoxModel({ getHistory: () => history, setHistory: (h) => { history = h; } });
 		return { model, get: () => history };
 	}
-	const q = (query: string): SearchState => ({ query, caseSensitive: false, wholeWord: false, regex: false, filter: { allowFolders: [], denyFolders: [], allowExtensions: [], denyExtensions: [] } });
+	const q = (query: string): SearchState => ({ query, caseSensitive: false, wholeWord: false, regex: false, filter: { allowFolders: [], denyFolders: [], allowExtensions: [], denyExtensions: [], properties: [] } });
 
 	it('forgets one search by its position', () => {
 		const b = box([q('a'), q('b'), q('c')]);

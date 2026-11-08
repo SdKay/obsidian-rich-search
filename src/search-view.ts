@@ -378,6 +378,7 @@ export class RichSearchView extends ItemView {
 			yieldToUi: () => new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve())),
 			match: { query: this.query, caseSensitive: this.caseSensitive, wholeWord: this.wholeWord, regex: this.regex },
 			filter: effectiveFilter(settings),
+			properties: this.plugin.properties,
 			blockModes: settings.blockModes,
 			excalidraw: settings.excalidraw,
 			binary: this.binaryReader(),

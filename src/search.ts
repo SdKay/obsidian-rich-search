@@ -1,6 +1,6 @@
 import { splitNote, type FencedBlock } from './blocks';
 import { isExcalidrawNote, textElementLines } from './excalidraw';
-import { isAllowed } from './filter';
+import { coversFile, type PropertyLookup } from './scope';
 import { compile, matchLine } from './match';
 import { blockCacheKey, cacheKey } from './providers';
 import type { ExtractedLine, ExtractResult } from './richSearchApi';
@@ -51,6 +51,8 @@ export interface SearchRequest {
 	yieldToUi: () => Promise<void>;
 	match: MatchOptions;
 	filter: FileFilter;
+	/** What the metadata cache holds for a note. Asked only for a file the path filter has allowed, and only when the filter has property conditions. */
+	properties?: PropertyLookup;
 	blockModes?: Record<string, BlockMode>;
 	/** Search a drawing note (`*.excalidraw.md`) by the words in the drawing only, not by its source. */
 	excalidraw?: boolean;
@@ -89,7 +91,7 @@ export async function search(req: SearchRequest): Promise<SearchResult> {
 	if (!compiled.ok) return { ok: false, error: compiled.error };
 
 	const readable = (path: string): boolean => isNote(path) || (req.binary?.handles(path) ?? false);
-	const allowed = req.files.filter((f) => readable(f.path) && isAllowed(f.path, req.filter, { excalidraw: req.excalidraw === true }));
+	const allowed = req.files.filter((f) => readable(f.path) && coversFile(f.path, req.filter, { excalidraw: req.excalidraw === true }, req.properties));
 	// Notes are quick and documents (a PDF of 1,200 pages) are not: notes go first, so their hits are on screen before the slow reads start.
 	const todo = [...allowed.filter((f) => isNote(f.path)), ...allowed.filter((f) => !isNote(f.path))];
 	const notes = allowed.length - allowed.filter((f) => !isNote(f.path)).length;

@@ -1,4 +1,4 @@
-import { Plugin, TFolder } from 'obsidian';
+import { Plugin, TFile, TFolder } from 'obsidian';
 import { clearMatchColor, setMatchColor } from './matchcolor';
 import { loadSettings, type RichSearchSettings } from './settings';
 import { t } from './i18n';
@@ -8,7 +8,7 @@ import { Watches } from './observed';
 import { editorHighlight, markHit, markQuery, setViewChangeListener } from './editor-highlight';
 import { paintPage, type PageSource } from './table-highlight';
 import { createHostApi } from './hostapi';
-import { inScope } from './scope';
+import { inScope, type PropertyLookup } from './scope';
 import { queryFromSelection } from './selectedquery';
 import { QueryState, type OpenedHit } from './querystate';
 import type { RichSearchHostApi } from './richSearchApi';
@@ -30,7 +30,7 @@ export default class RichSearchPlugin extends Plugin {
 
 	async onload(): Promise<void> {
 		this.settings = loadSettings((await this.loadData()) as Partial<RichSearchSettings> | null);
-		this.query.setScope((path) => inScope(path, this.settings));
+		this.query.setScope((path) => inScope(path, this.settings, this.properties));
 
 		// The panel comes first: a failure in the highlighting below must never leave the panel unregistered (a blank leaf).
 		this.addSettingTab(new RichSearchSettingTab(this.app, this));
@@ -71,14 +71,25 @@ export default class RichSearchPlugin extends Plugin {
 	/** Set once highlighting has started: marks the open notes again. */
 	private refreshMarks: () => void = () => {};
 
+	/**
+	 * The properties of a note, read from the metadata cache and never from the file. `found: false` is a note the cache has no
+	 * entry for yet; a note with an entry and no frontmatter is `found: true` with nothing in it.
+	 */
+	readonly properties: PropertyLookup = (path) => {
+		const file = this.app.vault.getAbstractFileByPath(path);
+		if (!(file instanceof TFile)) return { found: false };
+		const cache = this.app.metadataCache.getFileCache(file);
+		return cache ? { found: true, frontmatter: cache.frontmatter } : { found: false };
+	};
+
 	/** Whether the search covers this file. A file with no path (a note not saved yet) is treated as covered. */
 	private covers(path: string | undefined): boolean {
-		return path === undefined || inScope(path, this.settings);
+		return path === undefined || inScope(path, this.settings, this.properties);
 	}
 
 	/** The folders or file types of the search changed: the marks in the open notes follow them. */
 	rescope(): void {
-		this.query.setScope((path) => inScope(path, this.settings));
+		this.query.setScope((path) => inScope(path, this.settings, this.properties));
 		this.refreshMarks();
 	}
 

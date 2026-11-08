@@ -1,3 +1,4 @@
+import { cloneConditions, readConditions, sameConditions } from './properties';
 import type { FileFilter } from './types';
 
 /** Everything that defines one search: what was typed, how it matches, and where it looks. */
@@ -24,6 +25,7 @@ export function cloneState(s: SearchState): SearchState {
 			denyFolders: [...s.filter.denyFolders],
 			allowExtensions: [...s.filter.allowExtensions],
 			denyExtensions: [...s.filter.denyExtensions],
+			properties: cloneConditions(s.filter.properties),
 		},
 	};
 }
@@ -33,7 +35,8 @@ export function sameState(a: SearchState, b: SearchState): boolean {
 		&& a.caseSensitive === b.caseSensitive
 		&& a.wholeWord === b.wholeWord
 		&& a.regex === b.regex
-		&& LISTS.every((k) => a.filter[k].length === b.filter[k].length && a.filter[k].every((v, i) => v === b.filter[k][i]));
+		&& LISTS.every((k) => a.filter[k].length === b.filter[k].length && a.filter[k].every((v, i) => v === b.filter[k][i]))
+		&& sameConditions(a.filter.properties, b.filter.properties);
 }
 
 /** A new list with `state` as the newest entry. An empty query is not worth remembering; a repeat moves to the end. */
@@ -66,7 +69,8 @@ function isState(v: unknown): v is SearchState {
 /** Saved history comes from disk and may be old or hand-edited: keep only entries that are fully well-formed. */
 export function sanitizeHistory(raw: unknown, limit = HISTORY_LIMIT): SearchState[] {
 	if (!Array.isArray(raw)) return [];
-	return raw.filter(isState).map(cloneState).slice(-limit);
+	// A search saved before conditions existed has none: it is read with an empty list, not dropped.
+	return raw.filter(isState).map((entry) => cloneState({ ...entry, filter: { ...entry.filter, properties: readConditions((entry.filter as { properties?: unknown }).properties) } })).slice(-limit);
 }
 
 /**
