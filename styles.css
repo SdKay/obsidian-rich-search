@@ -61,6 +61,20 @@
 .rs-hit-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); }
 .rs-mark { background-color: var(--rs-match-bg, #ccff00); color: var(--rs-match-fg, #000000); border-radius: 2px; }
 
+/* The replace row sits under the search box, as in VS Code. */
+/* The arrow sits inside the left edge of the box, so the box and the replace row keep their width. */
+.rs-replace-toggle { position: absolute; left: 2px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; color: var(--text-muted); cursor: pointer; }
+.rs-box .rs-input { padding-left: 26px; }
+.rs-replace-row { display: flex; gap: var(--size-4-1); }
+.rs-replace-row .rs-replace-input { flex: 1; min-width: 0; padding-left: 26px; }
+.rs-replace-all { flex: none; }
+.rs-replace-files { margin: 0 0 var(--size-4-2); padding-left: var(--size-4-4); color: var(--text-muted); }
+.rs-hit-replace { flex: none; display: none; align-items: center; justify-content: center; width: 22px; height: 22px; color: var(--text-muted); cursor: pointer; }
+.rs-results.is-replacing .rs-hit-replace { display: inline-flex; }
+.rs-hit-replace:hover { color: var(--text-normal); }
+.rs-mark-old { text-decoration: line-through; background-color: color-mix(in srgb, var(--color-red) 35%, transparent); color: var(--text-muted); }
+.rs-mark-new { background-color: color-mix(in srgb, var(--color-green) 35%, transparent); color: var(--text-normal); }
+
 .rs-type.is-unavailable { color: var(--text-faint); cursor: default; }
 .rs-type-needs { font-size: var(--font-ui-smaller); color: var(--text-faint); }
 

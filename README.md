@@ -83,6 +83,13 @@ A powerful cross-file search tool for Obsidian. It matches whole words and regul
 - **Open a result** with its line centred. Ctrl/Cmd+click opens a new tab.
 - **Keyboard**: ↑ / ↓ move through the results; the focus stays in the list.
 
+### Replace
+
+- **Replace** with the arrow left of the box. Matches show as the old text struck out and the new text beside it.
+- **One result**, or **Replace all** after a confirmation that says how many notes and lines change.
+- **Regular expressions** can use `$1` and `$&` in the replacement.
+- **Markdown notes only**. A line changed since the search is skipped, not guessed at.
+
 ### Highlighting
 
 - **Matches stay highlighted** in open notes while the panel is open, as in VS Code.
@@ -155,6 +162,7 @@ In the search panel's **Scope** section:
 - A scanned PDF with no text layer cannot be searched.
 - A PlantUML diagram drawn as PNG has no text to highlight.
 - Matches inside a diagram are all drawn the same; the opened one is not brighter.
+- Replacing cannot be undone from the panel. A note open in an editor can be undone with Ctrl+Z.
 
 ---
 

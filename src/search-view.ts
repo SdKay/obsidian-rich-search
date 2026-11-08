@@ -1,5 +1,5 @@
 import { VIEW_TYPE_SEARCH } from './view-type';
-import { ItemView, setIcon, TFile, type WorkspaceLeaf } from 'obsidian';
+import { ItemView, Notice, setIcon, TFile, type WorkspaceLeaf } from 'obsidian';
 import { openHit } from './open-hit';
 import { extractPdf, pdfExtractVersion } from './pdf-reader';
 import { extractBlockWith, extractWith, findBlockProviders, findProviders, pluginState, type ExtensionProvider, type PluginsLike } from './providers';
@@ -10,6 +10,10 @@ import { hitIndexFrom } from './hitindex';
 import { nextSelection, type Row } from './selection';
 import { attachFolderInput } from './folder-input';
 import { scopeToFolder } from './folders';
+import { canReplaceHit, replaceInLine } from './replace';
+import { confirmReplaceAll } from './replace-confirm';
+import { planReplaceAll } from './replaceplan';
+import { replaceInNote } from './replace-files';
 import { effectiveFilter } from './scope';
 import { buildFileTypeSources, fileTypeRows, sameSources, setAllTypes, toggleType, type FileTypeSource } from './filetypes';
 import { cloneState, describeState, type SearchState } from './history';
@@ -43,6 +47,12 @@ export class RichSearchView extends ItemView {
 	private wholeWord = false;
 	private regex = false;
 	private scopeOpen = false;
+	/** The replace row is shown, and what it holds. Replacing is off while the row is closed or empty. */
+	private replaceOpen = false;
+	private replaceText = '';
+	private replaceInputEl!: HTMLInputElement;
+	private replaceRowEl!: HTMLElement;
+	private replaceAllEl!: HTMLButtonElement;
 	private collapsed = new Set<string>();
 	private timer: number | undefined;
 	private running: AbortController | null = null;
@@ -128,6 +138,24 @@ export class RichSearchView extends ItemView {
 			this.box.type(this.currentState());
 			this.inputEl.focus();
 			this.schedule();
+		});
+
+		this.replaceRowEl = top.createDiv({ cls: 'rs-replace-row is-hidden' });
+		this.replaceInputEl = this.replaceRowEl.createEl('input', { cls: 'rs-input rs-replace-input', attr: { type: 'text', placeholder: t('replacePlaceholder'), spellcheck: 'false' } });
+		this.registerDomEvent(this.replaceInputEl, 'input', () => {
+			this.replaceText = this.replaceInputEl.value;
+			this.refreshReplacePreview();
+		});
+		this.replaceAllEl = this.replaceRowEl.createEl('button', { cls: 'rs-replace-all', text: t('replaceAllButton') });
+		this.registerDomEvent(this.replaceAllEl, 'click', () => { void this.replaceAll(); });
+		const replaceToggle = box.createSpan({ cls: 'rs-replace-toggle clickable-icon', attr: { 'aria-label': t('replaceToggle'), role: 'button', tabindex: '0' } });
+		setIcon(replaceToggle, 'chevron-right');
+		this.registerDomEvent(replaceToggle, 'click', () => {
+			this.replaceOpen = !this.replaceOpen;
+			setIcon(replaceToggle, this.replaceOpen ? 'chevron-down' : 'chevron-right');
+			this.replaceRowEl.toggleClass('is-hidden', !this.replaceOpen);
+			if (this.replaceOpen) this.replaceInputEl.focus();
+			this.refreshReplacePreview();
 		});
 
 		const scope = top.createDiv({ cls: 'rs-scope' });
@@ -491,6 +519,73 @@ export class RichSearchView extends ItemView {
 		const row = body.createDiv({ cls: 'rs-hit', attr: { 'data-hit': String(number) } });
 		row.createSpan({ cls: 'rs-hit-pos', text: hit.location ?? String(hit.line + 1) });
 		this.renderSnippet(row.createSpan({ cls: 'rs-hit-text' }), hit);
+		if (canReplaceHit(hit)) {
+			const button = row.createSpan({ cls: 'rs-hit-replace clickable-icon', attr: { 'aria-label': t('replaceOne'), role: 'button', 'data-replace': String(number) } });
+			setIcon(button, 'replace');
+		}
+	}
+
+	/** Replacing is on when the row is open and holds text; an empty replacement is not offered, to keep an empty box from deleting matches by accident. */
+	private replacing(): boolean {
+		return this.replaceOpen && this.replaceText !== '';
+	}
+
+	/** Redraws the matches of every row on screen, with or without the text that would replace them. */
+	private refreshReplacePreview(): void {
+		this.resultsEl.toggleClass('is-replacing', this.replacing());
+		for (const el of Array.from(this.resultsEl.querySelectorAll<HTMLElement>('.rs-hit'))) {
+			const hit = this.state.all[Number(el.getAttribute('data-hit'))];
+			const text = el.querySelector<HTMLElement>('.rs-hit-text');
+			if (!hit || !text) continue;
+			text.empty();
+			this.renderSnippet(text, hit);
+		}
+	}
+
+	/** Replaces every replaceable hit of the search on screen, after the user has seen how many and has confirmed. */
+	private async replaceAll(): Promise<void> {
+		if (!this.replacing()) return;
+		// While a search runs, `state.all` is still growing, so "all" would be fewer than the search will find.
+		if (this.running) { new Notice(t('replaceAllWaiting')); return; }
+		const plan = planReplaceAll(this.state.all);
+		if (plan.lineCount === 0) return;
+		const opts = this.lastQuery;
+		const to = this.replaceText;
+		if (!(await confirmReplaceAll(this.app, plan, opts.query, to))) return;
+		let lines = 0;
+		let files = 0;
+		let left = 0;
+		for (const file of plan.files) {
+			try {
+				const result = await replaceInNote(this.app, file.path, file.lines, opts, to);
+				lines += result.replaced;
+				left += result.skipped.length;
+				if (result.replaced > 0) files++;
+			} catch (error) {
+				console.error('Rich Search: replace failed', error);
+				left += file.lines.length;
+			}
+		}
+		new Notice(left === 0 ? fmt('replaceAllDone', { lines, files }) : fmt('replaceAllPartial', { lines, files, skipped: left }));
+		this.runSearch();
+	}
+
+	/** Replaces in one line of one note, tells the user what happened, and searches again so the list shows what is left. */
+	private async replaceHit(number: number): Promise<void> {
+		const hit = this.state.all[number];
+		if (!hit || !canReplaceHit(hit) || !this.replacing()) return;
+		const name = hit.path.slice(hit.path.lastIndexOf('/') + 1);
+		try {
+			const result = await replaceInNote(this.app, hit.path, [{ line: hit.line, text: hit.text }], this.lastQuery, this.replaceText);
+			const skipped = result.skipped[0];
+			if (result.replaced > 0) new Notice(fmt('replaceDone', { file: name }));
+			else if (skipped?.reason === 'no-match') new Notice(fmt('replaceNothing', { file: name, line: hit.line + 1 }));
+			else new Notice(fmt('replaceChanged', { file: name, line: hit.line + 1 }));
+		} catch (error) {
+			console.error('Rich Search: replace failed', error);
+			new Notice(fmt('replaceFailed', { file: name }));
+		}
+		this.runSearch();
 	}
 
 	/** Selects a hit and opens it. Only Enter takes the focus into the note; a click or an arrow key leaves it in the list, so the arrows keep working. */
@@ -545,6 +640,12 @@ export class RichSearchView extends ItemView {
 
 		if (target?.closest('[data-more]')) { this.showMoreHits(); return; }
 
+		const replaceButton = target?.closest('[data-replace]');
+		if (replaceButton) {
+			void this.replaceHit(Number(replaceButton.getAttribute('data-replace')));
+			return;
+		}
+
 		const number = hitIndexFrom(target);
 		if (number !== undefined && this.state.all[number]) {
 			this.resultsEl.focus({ preventScroll: true });
@@ -567,7 +668,13 @@ export class RichSearchView extends ItemView {
 		for (const span of hit.spans) {
 			if (span.end <= from) continue;
 			el.appendText(hit.text.slice(cursor, span.start));
-			el.createEl('mark', { cls: 'rs-mark', text: hit.text.slice(span.start, span.end) });
+			const found = hit.text.slice(span.start, span.end);
+			if (this.replacing() && canReplaceHit(hit)) {
+				el.createEl('mark', { cls: 'rs-mark rs-mark-old', text: found });
+				el.createEl('mark', { cls: 'rs-mark rs-mark-new', text: replaceInLine(found, this.lastQuery, this.replaceText) });
+			} else {
+				el.createEl('mark', { cls: 'rs-mark', text: found });
+			}
 			cursor = span.end;
 		}
 		el.appendText(hit.text.slice(cursor));
