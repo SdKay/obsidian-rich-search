@@ -9,6 +9,14 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+	{ version: "0.1.2", date: "2026-11-08", changes: [
+		"feat: let a search carry conditions on note properties, with no way to set them yet",
+		"feat: replace matches in notes, one at a time or all at once after a confirmation",
+		"docs: shorten the feature list and move limitations to their own section",
+		"feat: mark search matches in mermaid and PlantUML diagrams",
+		"feat: search from the note's right-click menu, and call the panel Rich Search everywhere",
+		"docs: remove the link to the Demo section that no longer exists",
+	] },
 	{ version: "0.1.1", date: "2026-11-01", changes: [
 		"docs: update",
 		"feat: mark matches only in files the search covers, and tell other plugins which files those are",
