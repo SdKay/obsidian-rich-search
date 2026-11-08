@@ -67,23 +67,36 @@ A powerful cross-file search tool for Obsidian. It matches whole words and regul
 
 ## Features
 
-- **A search panel** in the sidebar (ribbon icon or the *Open search* command): drag it to either side. The query box and options stay fixed while only the results scroll.
-- **Whole-word matching** that also works in Chinese, Japanese and Korean text
-- **Regular expressions**, with a clear message instead of an error while you are still typing the pattern
-- **Case sensitivity** toggle
-- **Searching starts as you type**, and Enter searches at once. A new query cancels the one still running.
-- **Scope**: include folders and exclude folders (an exclusion inside an included folder carves it out), and tick the file types to search. Skipped files are never read.
-- **Open a result** in the main area (Ctrl/Cmd+click for a new tab). A note opens with the matching line in the middle of the window, in reading view and in the editor alike.
-- **Move through the results with the keyboard**: ↑ / ↓ select the previous or next result and open it without taking the focus away from the list. The selected result is shown with a background, as in VS Code.
-- **Matches stay highlighted** in every open note, as in VS Code, for as long as the search panel is open and the query is not empty. Clicking, typing in the note and pressing Escape do not clear them. The match you opened is drawn brighter, with an outline, and the others dimmer. This works in the editor, in reading view and in Markdown tables. Only notes the search covers are marked: a note outside the folders and file types of the search is left alone, and the marks follow the scope when you change it. The text inside a diagram is marked too, for mermaid and for PlantUML output that is SVG; a diagram drawn as a picture (PlantUML PNG) has no text to mark, and every match in a diagram is drawn the same, without the brighter one.
-- **Choose the highlight colour** in the settings. Every view that shows a match uses it.
-- **Search history**: press ↑ / ↓ in the query box to step back and forth through earlier searches; each one restores the text, the three options and the scope. A button in the box lists them, newest first: click one to restore it, click the × after it to forget just that one, or choose *Clear history*.
-- **Search in a folder**: right-click a folder in the file explorer and choose *Search in folder*. The include list becomes that folder, the exclude list is cleared, and the query already in the box is searched again.
-- **Search from a note**: right-click in a note and choose *Search with Rich Search*, or *Search selection with Rich Search* when text is selected. The panel opens with the cursor in the box; the selected text, up to its first line, is searched at once with the options and scope already set.
-- **Excalidraw drawings** are searched by the words in them, and clicking a result opens the drawing and zooms to the element (needs the Excalidraw plugin).
-- **PDF files** are searched by the text on each page. Clicking a result opens the page in Obsidian's viewer, and the matches on the pages you scroll through are marked. A scanned PDF with no text layer cannot be searched and is counted among the files that could not be read. The first search of a large PDF takes a while; its text is kept in memory afterwards.
-- **Excel, PowerPoint, draw.io and Visio files** are searched through the Rich Table and Rich View plugins, and clicking a result opens the file at the sheet and cell, the slide, or the shape (see [below](#cross-format-search)).
-- **Many results**: the first 2,000 are shown with the true total above them, and a button shows more. Results appear as they are found, notes first.
+### Search
+
+- **Sidebar panel**: the ribbon icon or *Open search*. The box stays fixed; only the results scroll.
+- **Whole word** (works in Chinese, Japanese and Korean), **regular expressions**, **case sensitive**.
+- **Search as you type**; Enter searches at once.
+- **Scope**: include and exclude folders, and tick file types. Files outside the scope are never read.
+- **History**: ↑ / ↓ in the box, or the history button. Restores the text, options and scope.
+- **Search in a folder**: right-click a folder in the file explorer.
+- **Search from a note**: right-click in a note. Selected text becomes the query.
+
+### Results
+
+- **Grouped by file**, shown as they are found, notes first. The first 2,000 are shown, with more on request.
+- **Open a result** with its line centred. Ctrl/Cmd+click opens a new tab.
+- **Keyboard**: ↑ / ↓ move through the results; the focus stays in the list.
+
+### Highlighting
+
+- **Matches stay highlighted** in open notes while the panel is open, as in VS Code.
+- **The opened match** is brighter, with an outline.
+- **Editor, reading view and Markdown tables** are all marked.
+- **Only files in the scope** are marked.
+- **Diagrams**: the text in mermaid and in SVG PlantUML is marked too.
+- **Highlight colour** is set in the settings.
+
+### Other formats
+
+- **PDF**: searched by page text; a result opens at its page.
+- **Excalidraw**: searched by the words in the drawing; a result zooms to the element.
+- **Excel, PowerPoint, draw.io, Visio**: through Rich Table and Rich View (see [below](#cross-format-search)).
 
 ---
 
@@ -134,6 +147,14 @@ In the search panel's **Scope** section:
 | Include folders | Search only inside these. Empty means every folder. |
 | Exclude folders | Never search these. Subtracted from the included folders. |
 | File types | Tick the types to search. |
+
+---
+
+## Limitations
+
+- A scanned PDF with no text layer cannot be searched.
+- A PlantUML diagram drawn as PNG has no text to highlight.
+- Matches inside a diagram are all drawn the same; the opened one is not brighter.
 
 ---
 
